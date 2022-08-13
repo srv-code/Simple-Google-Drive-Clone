@@ -20,19 +20,19 @@ const authReducer = createReducer(initialState, {
   [LOGIN_REQUEST]: (
     state: IAuthState,
     { payload: { username, password } }: IAuthRequestAction
-  ) => ({ username, password }),
+  ): IAuthState => ({ isLoggedIn: false, username, password }),
 
   [LOGIN_RESPONSE]: (
     state: IAuthState,
     { payload: { token } }: IAuthSuccessAction
-  ) => ({ isLoggedIn: true, token }),
+  ): IAuthState => ({ ...state, isLoggedIn: true, token }),
 
-  [LOGIN_FAILED]: (state: IAuthState, { payload }: IAuthFailureAction) => ({
-    isLoggedIn: false,
-    error: payload,
-  }),
+  [LOGIN_FAILED]: (
+    state: IAuthState,
+    { payload }: IAuthFailureAction
+  ): IAuthState => ({ isLoggedIn: false, error: payload }),
 
-  [LOG_OUT]: (state: IAuthState) => ({ isLoggedIn: false }),
+  [LOG_OUT]: (state: IAuthState): IAuthState => ({ isLoggedIn: false }),
 });
 
 export default authReducer;

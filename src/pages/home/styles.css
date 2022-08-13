@@ -1,0 +1,20 @@
+#logout-link {
+  text-decoration: none;
+}
+
+#header-row {
+  background-color: lightblue;
+  display: flex;
+  justify-content: center;
+  justify-content: flex-end;
+  margin-bottom: 30px;
+  padding: 10px;
+}
+
+#username-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  flex: 0.2;
+}

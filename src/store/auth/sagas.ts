@@ -24,9 +24,6 @@ function* loginAsync({ payload: { username, password } }: IAuthRequestAction) {
     if (!response.success) throw new Error(response.reason);
 
     yield put(onLoginSuccess(response.user!));
-
-    /* NOTE: no need to call navigate as this is handled by redux store with SwitchNavigator */
-    // yield call(navigate(screenNames.home));
   } catch (error: any) {
     yield put(onLoginFailure(error.message));
   } finally {

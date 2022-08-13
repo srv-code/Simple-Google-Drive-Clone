@@ -1,11 +1,11 @@
-import authReducer from './auth/reducers';
 import loadingReducer from './loader/reducers';
-// import filesReducer from './loader/reducers';
+import authReducer from './auth/reducers';
+import filesReducer from './files/reducers';
 
 const rootReducers = {
   auth: authReducer,
   loading: loadingReducer,
-  // files: filesReducer,
+  files: filesReducer,
 };
 
 export default rootReducers;
