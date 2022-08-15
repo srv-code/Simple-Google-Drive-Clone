@@ -15,7 +15,7 @@ const FileManager: React.FC<IProps> = props => {
 
   const {
     loading: { isFetchingFiles },
-    files: { files, error, lastFetchedOn, parentId },
+    files: { files, error, lastFetchedOn },
   } = useSelector((state: IState) => state);
 
   const dispatch = useDispatch();
