@@ -47,11 +47,13 @@ const FileManager: React.FC<IProps> = props => {
   }, [props.token]);
 
   const onRefreshDirListing = () => {
-    fetchDirectoryListing(parentDirs[parentDirs.length - 1]);
+    if (!isFetchingFiles)
+      fetchDirectoryListing(parentDirs[parentDirs.length - 1]);
   };
 
   const onGoToParentDir = () => {
-    fetchDirectoryListing(parentDirs[parentDirs.length - 2]);
+    if (!isFetchingFiles)
+      fetchDirectoryListing(parentDirs[parentDirs.length - 2]);
   };
 
   const renderLastFetchLabel = () => (
@@ -73,6 +75,11 @@ const FileManager: React.FC<IProps> = props => {
                 href={isLastItem ? undefined : '#'}
                 className='link'
                 id='path-link-text'
+                style={
+                  isFetchingFiles
+                    ? { color: 'gray', cursor: 'default' }
+                    : undefined
+                }
                 onClick={() => {
                   if (!isLastItem) onFileClick(dir);
                 }}>
@@ -95,12 +102,19 @@ const FileManager: React.FC<IProps> = props => {
     <div id='button-panel'>
       <div id='refresh-button' onClick={onRefreshDirListing}>
         <img
+          style={{ visibility: isFetchingFiles ? 'hidden' : 'visible' }}
           src={require('../../assets/images/refresh.png')}
           alt='go-to-parent-folder-icon'
           height={20}
           width={20}
         />
-        <a className='link' href='#' id='refresh-button-text'>
+        <a
+          className='link'
+          href='#'
+          id='refresh-button-text'
+          style={
+            isFetchingFiles ? { color: 'gray', cursor: 'default' } : undefined
+          }>
           Refresh
         </a>
       </div>
