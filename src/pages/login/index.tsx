@@ -83,7 +83,7 @@ const Login: React.FC = () => {
               </tr>
               <tr>
                 <td>
-                  <div className='row-items'>
+                  <div id='login-button-loader-container'>
                     <button disabled={isLoggingIn} onClick={onLogin}>
                       Login
                     </button>

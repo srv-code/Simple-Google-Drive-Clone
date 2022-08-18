@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { File } from '../../models/api/files';
 import { IState } from '../../models/reducers/state';
 import { requestFiles } from '../../store/files/actions';
+import Loader from '../loader';
 import './styles.css';
 
 interface IProps {
@@ -45,20 +46,6 @@ const FileManager: React.FC<IProps> = props => {
     fetchDirectoryListing();
   }, [props.token]);
 
-  const renderLoader = (size: 'large' | 'medium' | 'small') => {
-    const sizeValue =
-      size === 'large' ? 40 : size === 'medium' ? 15 : size === 'small' ? 5 : 0;
-
-    return (
-      <img
-        src={require('../../assets/images/loading.gif')}
-        alt='Loading...'
-        height={sizeValue}
-        width={sizeValue}
-      />
-    );
-  };
-
   const onRefreshDirListing = () => {
     fetchDirectoryListing(parentDirs[parentDirs.length - 1]);
   };
@@ -70,7 +57,7 @@ const FileManager: React.FC<IProps> = props => {
   const renderLastFetchLabel = () => (
     <div id='last-fetch-text'>
       <span id='last-fetch-on-text'>Last fetched on:</span>
-      <span>{lastFetchedOn?.toString() || renderLoader('medium')}</span>
+      <span>{lastFetchedOn?.toString() || <Loader />}</span>
     </div>
   );
 
@@ -96,7 +83,9 @@ const FileManager: React.FC<IProps> = props => {
           );
         })}
         {isFetchingFiles && (
-          <div id='path-viewer-loader-container'>{renderLoader('medium')}</div>
+          <div id='path-viewer-loader-container'>
+            <Loader />
+          </div>
         )}
       </div>
     </div>
@@ -196,7 +185,9 @@ const FileManager: React.FC<IProps> = props => {
       <div id='file-view-container'>
         <div id='file-list-container'>
           {isFetchingFiles ? (
-            <div id='file-list-loader-container'>{renderLoader('large')}</div>
+            <div id='file-list-loader-container'>
+              <Loader size='large' />
+            </div>
           ) : (
             <div id='file-listing'>
               {parentDirs[parentDirs.length - 1] && renderParentDirLink()}
