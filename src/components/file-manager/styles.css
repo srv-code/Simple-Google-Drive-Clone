@@ -68,19 +68,24 @@
   margin-left: 5px;
 }
 
-#button-panel {
+#action-button-panel {
   margin-top: 10px;
   display: flex;
   align-items: center;
+  background-color: rgba(8, 166, 8, 0.563);
+  padding: 3px 10px;
+  border-radius: 5px;
 }
 
-#refresh-button {
+.action-button {
   display: flex;
   align-items: center;
+  margin-right: 10px;
 }
 
-#refresh-button-text {
-  margin-left: 2px;
+.action-button-text {
+  margin-left: 3px;
+  font-size: small;
 }
 
 #error-reason-container {

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { File } from '../../models/api/files';
+import { File, FileID } from '../../models/api/files';
 import { IState } from '../../models/reducers/state';
 import { requestFiles } from '../../store/files/actions';
 import Loader from '../loader';
@@ -10,9 +10,19 @@ interface IProps {
   token: string;
 }
 
+interface IActionButton {
+  id: string;
+  onClick: () => void;
+  icon: string;
+  labelText: string;
+  disabled?: boolean;
+  size?: number;
+}
+
 const FileManager: React.FC<IProps> = props => {
   const [parentDirs, setParentDirs] = useState<(File | undefined)[]>([]);
   const [previewData, setPreviewData] = useState<File | null>();
+  const [selectedItemIds, setSelectedItemIds] = useState<FileID[] | null>(null);
 
   const {
     loading: { isFetchingFiles },
@@ -20,6 +30,14 @@ const FileManager: React.FC<IProps> = props => {
   } = useSelector((state: IState) => state);
 
   const dispatch = useDispatch();
+
+  useEffect(() => {
+    fetchDirectoryListing();
+  }, [props.token]);
+
+  useEffect(() => {
+    if (selectedItemIds) setSelectedItemIds(null);
+  }, [isFetchingFiles]);
 
   const onFileClick = (file?: File) => {
     console.log('clicked on', { file });
@@ -42,13 +60,33 @@ const FileManager: React.FC<IProps> = props => {
     setParentDirs(parents);
   };
 
-  useEffect(() => {
-    fetchDirectoryListing();
-  }, [props.token]);
-
   const onRefreshDirListing = () => {
     if (!isFetchingFiles)
       fetchDirectoryListing(parentDirs[parentDirs.length - 1]);
+  };
+
+  const switchFileSelection = () => {
+    if (!isFetchingFiles) setSelectedItemIds(val => (val ? null : []));
+  };
+
+  const onDeleteFile = () => {
+    console.log('Should delete files:', selectedItemIds);
+    setSelectedItemIds(null);
+  };
+
+  const onFileCopyTo = (move?: boolean) => {
+    console.log(`Should ${move ? 'move' : 'copy'} files:`, selectedItemIds);
+    setSelectedItemIds(null);
+  };
+
+  const onDuplicateFile = () => {
+    console.log('Should duplicate files:', selectedItemIds);
+    setSelectedItemIds(null);
+  };
+
+  const onDownloadFile = () => {
+    console.log('Should download files:', selectedItemIds);
+    setSelectedItemIds(null);
   };
 
   const onGoToParentDir = () => {
@@ -98,28 +136,89 @@ const FileManager: React.FC<IProps> = props => {
     </div>
   );
 
-  const renderButtonPanel = () => (
-    <div id='button-panel'>
-      <div id='refresh-button' onClick={onRefreshDirListing}>
+  const renderButtonPanel = () => {
+    const renderButton = (buttonProps: IActionButton, index: number) => (
+      <div
+        key={`${buttonProps.id} + ${index}`}
+        id={buttonProps.id}
+        className='action-button'
+        onClick={buttonProps.onClick}>
         <img
-          style={{ visibility: isFetchingFiles ? 'hidden' : 'visible' }}
-          src={require('../../assets/images/refresh.png')}
-          alt='go-to-parent-folder-icon'
-          height={20}
-          width={20}
+          style={{ visibility: buttonProps.disabled ? 'hidden' : 'visible' }}
+          src={buttonProps.icon}
+          alt={buttonProps.id}
+          height={buttonProps.size || 15}
+          width={buttonProps.size || 15}
         />
         <a
-          className='link'
+          className='link action-button-text'
           href='#'
-          id='refresh-button-text'
           style={
-            isFetchingFiles ? { color: 'gray', cursor: 'default' } : undefined
+            buttonProps.disabled
+              ? { color: 'gray', cursor: 'default' }
+              : undefined
           }>
-          Refresh
+          {buttonProps.labelText}
         </a>
       </div>
-    </div>
-  );
+    );
+
+    const buttons: IActionButton[] = [
+      {
+        id: 'refresh-button',
+        onClick: onRefreshDirListing,
+        icon: require('../../assets/images/refresh.png'),
+        labelText: 'Refresh',
+        disabled: isFetchingFiles,
+      },
+      {
+        id: 'select-button',
+        onClick: switchFileSelection,
+        icon: require('../../assets/images/select.png'),
+        labelText: 'Select',
+        disabled: isFetchingFiles,
+      },
+      {
+        id: 'delete-button',
+        onClick: onDeleteFile,
+        icon: require('../../assets/images/delete.png'),
+        labelText: 'Delete',
+        disabled: Boolean(isFetchingFiles || !selectedItemIds?.length),
+      },
+      {
+        id: 'move-button',
+        onClick: () => onFileCopyTo(true),
+        icon: require('../../assets/images/move.jpg'),
+        labelText: 'Move To',
+        disabled: Boolean(isFetchingFiles || !selectedItemIds?.length),
+      },
+      {
+        id: 'copy-button',
+        onClick: onFileCopyTo,
+        icon: require('../../assets/images/copy.png'),
+        labelText: 'Copy To',
+        disabled: Boolean(isFetchingFiles || !selectedItemIds?.length),
+      },
+      {
+        id: 'duplicate-button',
+        onClick: onDuplicateFile,
+        icon: require('../../assets/images/duplicate.png'),
+        labelText: 'Duplicate',
+        disabled: Boolean(isFetchingFiles || !selectedItemIds?.length),
+        size: 18,
+      },
+      {
+        id: 'download-button',
+        onClick: onDuplicateFile,
+        icon: require('../../assets/images/download.jpeg'),
+        labelText: 'Download',
+        disabled: Boolean(isFetchingFiles || !selectedItemIds?.length),
+        size: 22,
+      },
+    ];
+
+    return <div id='action-button-panel'>{buttons.map(renderButton)}</div>;
+  };
 
   const renderErrorOrListPanel = () => {
     const renderErrorMessage = () => (
@@ -180,6 +279,21 @@ const FileManager: React.FC<IProps> = props => {
     const renderFiles = () =>
       files?.map((file, index) => (
         <div key={index} id='file-container'>
+          {selectedItemIds && (
+            <input
+              type='checkbox'
+              checked={selectedItemIds?.includes(file.id)}
+              onChange={() => {
+                if (selectedItemIds) {
+                  const ids = [...selectedItemIds];
+                  const index = ids.findIndex(id => id === file.id);
+                  if (index === -1) ids.push(file.id);
+                  else ids.splice(index, 1);
+                  setSelectedItemIds(ids);
+                } else setSelectedItemIds([file.id]);
+              }}
+            />
+          )}
           <img
             id='img-file-icon'
             src={require(`../../assets/images/${
