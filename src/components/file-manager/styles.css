@@ -56,7 +56,7 @@
   align-items: center;
 }
 
-#path-link-text {
+.path-link-text {
   font-family: consolas;
   font-size: 12px;
   background-color: pink;
@@ -159,13 +159,13 @@
   flex-direction: column;
 }
 
-#file-container {
+.file-container {
   display: flex;
   align-items: center;
   margin-bottom: 10px;
 }
 
-#img-file-icon {
+.img-file-icon {
   margin-right: 5px;
 }
 
@@ -178,4 +178,61 @@
 #file-list-container {
   display: flex;
   flex: 0.75;
+}
+
+#confirm-button-container {
+  display: flex;
+  justify-content: space-between;
+}
+
+.confirm-button {
+  width: 40%;
+  padding: 3px 0;
+  font-size: 15px;
+}
+
+#hover-title {
+  font-weight: bold;
+  font-size: 24px;
+  color: darkblue;
+  margin-bottom: 10px;
+}
+
+#hover-text {
+  font-size: 15px;
+  margin-bottom: 15px;
+}
+
+#hover-small-text {
+  font-size: 12px;
+  color: gray;
+}
+
+#hover-dir-browser-container {
+  text-align: left;
+  margin-bottom: 10px;
+}
+
+#hover-dir-browser {
+  border: 1px solid darkgray;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+#copy-dialog-path-viewer {
+  width: 100%;
+  background-color: rgba(46, 46, 244, 0.427);
+  display: flex;
+  align-items: center;
+  padding: 0 5px 5px 5px;
+}
+
+#dialog-dir-list {
+  padding: 5px 0 0 10px;
+  height: 300px;
+  background-color: rgba(141, 116, 225, 0.164);
+}
+
+.full-width {
+  width: 100%;
 }

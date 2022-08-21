@@ -1,4 +1,8 @@
-import { FileID, IFilesAPIResponse } from '../api/files';
+import {
+  FileID,
+  IFilesAPIResponse,
+  IPasteDestinationDirectoriesAPIResponse,
+} from '../api/files';
 
 interface IFilesFetchRequestPayload {
   token: string;
@@ -25,10 +29,33 @@ interface IFilesFetchFailureAction {
   payload: IFilesFetchError;
 }
 
+interface IPasteDestinationDirectoriesFetchRequestPayload {
+  token: string;
+  parentId?: FileID;
+  sourceDirectoryId?: FileID;
+}
+
+interface IPasteDestinationDirectoriesFetchRequestAction {
+  type: string;
+  payload: IPasteDestinationDirectoriesFetchRequestPayload;
+}
+
+interface IPasteDestinationDirectoriesFetchSuccessAction {
+  type: string;
+  payload: IPasteDestinationDirectoriesAPIResponse;
+}
+
+interface IPasteDestinationDirectoriesFetchFailureAction
+  extends IFilesFetchFailureAction {}
+
 export type {
   IFilesFetchRequestPayload,
   IFilesFetchRequestAction,
   IFilesFetchSuccessAction,
   IFilesFetchError,
   IFilesFetchFailureAction,
+  IPasteDestinationDirectoriesFetchRequestPayload,
+  IPasteDestinationDirectoriesFetchRequestAction,
+  IPasteDestinationDirectoriesFetchFailureAction,
+  IPasteDestinationDirectoriesFetchSuccessAction,
 };

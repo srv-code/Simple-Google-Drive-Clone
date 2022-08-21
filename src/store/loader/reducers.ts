@@ -7,12 +7,15 @@ import {
   NOTIF_DISABLE_LOADER,
   FILES_ENABLE_LOADER,
   FILES_DISABLE_LOADER,
+  DIRECTORIES_ENABLE_LOADER,
+  DIRECTORIES_DISABLE_LOADER,
 } from './action-types';
 
 const initialState: ILoadingState = {
   isLoggingIn: false,
   isFetchingNotifications: false,
   isFetchingFiles: false,
+  isFetchingDirectories: false,
 };
 
 const loaderReducer = createReducer(initialState, {
@@ -41,6 +44,15 @@ const loaderReducer = createReducer(initialState, {
   [FILES_DISABLE_LOADER]: (state: ILoadingState): ILoadingState => ({
     ...state,
     isFetchingFiles: false,
+  }),
+
+  [DIRECTORIES_ENABLE_LOADER]: (state: ILoadingState): ILoadingState => ({
+    ...state,
+    isFetchingDirectories: true,
+  }),
+  [DIRECTORIES_DISABLE_LOADER]: (state: ILoadingState): ILoadingState => ({
+    ...state,
+    isFetchingDirectories: false,
   }),
 });
 

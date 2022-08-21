@@ -2,13 +2,21 @@ import { put, delay } from 'redux-saga/effects';
 import {
   IFilesFetchError,
   IFilesFetchRequestAction,
+  IPasteDestinationDirectoriesFetchRequestAction,
 } from '../../models/actions/files';
-import { File, FileID, IFilesAPIResponse } from '../../models/api/files';
+import {
+  File,
+  FileID,
+  IFilesAPIResponse,
+  IPasteDestinationDirectoriesAPIResponse,
+} from '../../models/api/files';
 import {
   disableLoader,
   enableLoader,
   onFilesFetchSuccess,
   onFilesFetchFailure,
+  onPasteDestinationDirectoriesFetchSuccess,
+  onPasteDestinationDirectoriesFetchFailure,
 } from './actions';
 
 /* For sample use only */
@@ -106,6 +114,39 @@ class FileManager {
     },
   ];
 
+  fetchDirs(
+    token: string,
+    parentId?: FileID
+  ): {
+    success: boolean;
+    data?: IPasteDestinationDirectoriesAPIResponse;
+    error?: IFilesFetchError;
+  } {
+    if (token !== 'Xgs3a34uyd234nf6kg')
+      return {
+        success: false,
+        error: { reason: 'Unauthorized user' },
+      };
+
+    // if (parentId === 101)
+    if (parentId && !this.fileList.some(f => f.id === parentId))
+      return {
+        success: false,
+        error: {
+          reason: 'Invalid parent file',
+          fileId: parentId,
+        },
+      };
+
+    return {
+      success: true,
+      data: {
+        parentId,
+        files: this.fileList.filter(f => f.parentId === parentId && f.isDir),
+      },
+    };
+  }
+
   fetchDirList(
     token: string,
     parentId?: FileID
@@ -147,7 +188,7 @@ function* filesFetchAsync({
   payload: { token, parentId },
 }: IFilesFetchRequestAction) {
   try {
-    yield put(enableLoader());
+    yield put(enableLoader('listing'));
     /* NOTE: How to call API */
     // const response = yield call(loginUser, username, password);
 
@@ -161,8 +202,31 @@ function* filesFetchAsync({
   } catch (error: any) {
     yield put(onFilesFetchFailure({ reason: 'Unknown' }));
   } finally {
-    yield put(disableLoader());
+    yield put(disableLoader('listing'));
   }
 }
 
-export { filesFetchAsync };
+function* pasteDestinationDirectoriesFetchAsync({
+  payload: { token, parentId },
+}: IPasteDestinationDirectoriesFetchRequestAction) {
+  try {
+    yield put(enableLoader('pasting'));
+    /* NOTE: How to call API */
+    // const response = yield call(loginUser, username, password);
+
+    yield delay(1000); /* NOTE: Emulating network latency */
+
+    /* NOTE: Mock API response */
+    const response = fileManager.fetchDirs(token, parentId);
+
+    if (response.success)
+      yield put(onPasteDestinationDirectoriesFetchSuccess(response.data!));
+    else yield put(onPasteDestinationDirectoriesFetchFailure(response.error!));
+  } catch (error: any) {
+    yield put(onPasteDestinationDirectoriesFetchFailure({ reason: 'Unknown' }));
+  } finally {
+    yield put(disableLoader('pasting'));
+  }
+}
+
+export { filesFetchAsync, pasteDestinationDirectoriesFetchAsync };

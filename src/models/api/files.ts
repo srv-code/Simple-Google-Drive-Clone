@@ -14,4 +14,14 @@ interface IFilesAPIResponse {
   lastFetchedOn: Date;
 }
 
-export type { FileID, File, IFilesAPIResponse };
+interface IPasteDestinationDirectoriesAPIResponse {
+  files: File[];
+  parentId?: FileID;
+}
+
+export type {
+  FileID,
+  File,
+  IFilesAPIResponse,
+  IPasteDestinationDirectoriesAPIResponse,
+};

@@ -2,11 +2,19 @@ import { IFilesFetchError } from '../actions/files';
 import { File, FileID } from '../api/files';
 
 interface IFilesState {
-  lastFetchedOn?: Date;
-  files: File[];
   token?: string;
-  parentId?: FileID;
-  error?: IFilesFetchError;
+  directoryListing: {
+    parentId?: FileID;
+    lastFetchedOn?: Date;
+    files: File[];
+    error?: IFilesFetchError;
+  };
+  pasteDestinationListing: {
+    sourceDirectoryId?: FileID;
+    parentId?: FileID;
+    files: File[];
+    error?: IFilesFetchError;
+  };
 }
 
 export type { IFilesState };

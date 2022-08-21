@@ -2,7 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { File, FileID } from '../../models/api/files';
 import { IState } from '../../models/reducers/state';
-import { requestFiles } from '../../store/files/actions';
+import {
+  requestFiles,
+  requestPasteDestinationDirectories,
+} from '../../store/files/actions';
+import HoverCard from '../hover-card';
 import Loader from '../loader';
 import './styles.css';
 
@@ -19,85 +23,188 @@ interface IActionButton {
   size?: number;
 }
 
+interface ICopyDialogProps {
+  show: boolean;
+  sourceDirectory?: File;
+  operation?: 'move' | 'copy';
+  title?: string;
+  text?: string;
+  onSelect?: (directory: Directory) => void;
+  onCancel?: () => void;
+}
+
+type Directory = File | undefined;
+
 const FileManager: React.FC<IProps> = props => {
-  const [parentDirs, setParentDirs] = useState<(File | undefined)[]>([]);
+  const [parentDirs, setParentDirs] = useState<Directory[]>([]);
+  const [copyDialogParentDirs, setCopyDialogParentDirs] = useState<Directory[]>(
+    []
+  );
+
   const [previewData, setPreviewData] = useState<File | null>();
-  const [selectedItemIds, setSelectedItemIds] = useState<FileID[] | null>(null);
+  const [selectedFileIds, setSelectedFileIds] = useState<FileID[] | null>(null);
+  const [copyDialogProps, setCopyDialogProps] = useState<ICopyDialogProps>({
+    show: false,
+  });
 
   const {
-    loading: { isFetchingFiles },
-    files: { files, error, lastFetchedOn },
+    loading: { isFetchingFiles, isFetchingDirectories },
+    files: { directoryListing, pasteDestinationListing },
   } = useSelector((state: IState) => state);
 
   const dispatch = useDispatch();
 
   useEffect(() => {
-    fetchDirectoryListing();
+    fetchDirectoryListing('listing', undefined);
   }, [props.token]);
 
   useEffect(() => {
-    if (selectedItemIds) setSelectedItemIds(null);
+    if (selectedFileIds && !copyDialogProps.show) setSelectedFileIds(null);
+    // setCopyDialogProps({ show: false });
   }, [isFetchingFiles]);
 
-  const onFileClick = (file?: File) => {
-    console.log('clicked on', { file });
-
-    if (!file || file.isDir) {
-      if (previewData) setPreviewData(null);
-      fetchDirectoryListing(file);
-    } else setPreviewData(file);
+  const onSelectFile = (file: File) => {
+    if (selectedFileIds) {
+      const ids = [...selectedFileIds];
+      const index = ids.findIndex(id => id === file.id);
+      if (index === -1) ids.push(file.id);
+      else ids.splice(index, 1);
+      setSelectedFileIds(ids);
+    } else setSelectedFileIds([file.id]);
   };
 
-  const fetchDirectoryListing = (parent?: File) => {
-    const parents = [...parentDirs];
+  const onFileClick = (file?: File) => {
+    if (selectedFileIds) onSelectFile(file!);
+    else {
+      if (!file || file.isDir) {
+        if (previewData) setPreviewData(null);
+        fetchDirectoryListing('listing', file);
+      } else setPreviewData(file);
+    }
+  };
+
+  const fetchDirectoryListing = (
+    mode: 'listing' | 'pasting',
+    parent: Directory
+  ) => {
+    const parents = [
+      ...(mode === 'listing' ? parentDirs : copyDialogParentDirs),
+    ];
     const index = parents.findIndex(dir =>
       parent ? parent.id === dir?.id : !dir
     );
     if (index !== -1) parents.splice(index + 1);
     else parents.push(parent);
 
-    dispatch(requestFiles({ token: props.token, parentId: parent?.id }));
-    setParentDirs(parents);
+    if (mode === 'listing') {
+      dispatch(requestFiles({ token: props.token, parentId: parent?.id }));
+      setParentDirs(parents);
+    } else {
+      dispatch(
+        requestPasteDestinationDirectories({
+          token: props.token,
+          parentId: parent?.id,
+          sourceDirectoryId: pasteDestinationListing.sourceDirectoryId,
+        })
+      );
+      setCopyDialogParentDirs(parents);
+    }
   };
 
   const onRefreshDirListing = () => {
     if (!isFetchingFiles)
-      fetchDirectoryListing(parentDirs[parentDirs.length - 1]);
+      fetchDirectoryListing('listing', parentDirs[parentDirs.length - 1]);
   };
 
   const switchFileSelection = () => {
-    if (!isFetchingFiles) setSelectedItemIds(val => (val ? null : []));
+    if (!isFetchingFiles) setSelectedFileIds(val => (val ? null : []));
   };
 
   const onDeleteFile = () => {
-    console.log('Should delete files:', selectedItemIds);
-    setSelectedItemIds(null);
+    console.log('Should delete files:', selectedFileIds);
+    setSelectedFileIds(null);
   };
 
-  const onFileCopyTo = (move?: boolean) => {
-    console.log(`Should ${move ? 'move' : 'copy'} files:`, selectedItemIds);
-    setSelectedItemIds(null);
+  const onFileCopyTo = (move: boolean) => {
+    const sourceDirectory = parentDirs[parentDirs.length - 1];
+
+    dispatch(
+      requestPasteDestinationDirectories({
+        token: props.token,
+        parentId: sourceDirectory?.id,
+        sourceDirectoryId: sourceDirectory?.id,
+      })
+    );
+
+    setCopyDialogParentDirs(parentDirs);
+
+    setCopyDialogProps({
+      show: true,
+      operation: move ? 'move' : 'copy',
+      sourceDirectory,
+      title: `File ${move ? 'Move' : 'Copy'}`,
+      text: (() => {
+        let retval = move ? 'Moving' : 'Copying';
+        let fileCount = 0,
+          dirCount = 0;
+        directoryListing.files.forEach(file => {
+          if (file.isDir) dirCount++;
+          else fileCount++;
+        });
+        if (dirCount) retval += ` ${dirCount} directories`;
+        if (dirCount && fileCount) retval += ' and';
+        if (fileCount) retval += ` ${fileCount} files`;
+        // retval += '?';
+        return retval;
+      })(),
+      onSelect: (directory: Directory) => {
+        console.log(
+          `Should ${move ? 'move' : 'copy'} files:`,
+          selectedFileIds,
+          'to directory:',
+          directory
+        );
+        setSelectedFileIds(null);
+        setCopyDialogProps({ show: false });
+      },
+      onCancel: () => {
+        console.log(
+          `Cancelled ${move ? 'moving' : 'copying'} files:`,
+          selectedFileIds
+        );
+        setSelectedFileIds(null);
+        setCopyDialogProps({ show: false });
+      },
+    });
   };
 
   const onDuplicateFile = () => {
-    console.log('Should duplicate files:', selectedItemIds);
-    setSelectedItemIds(null);
+    console.log('Should duplicate files:', selectedFileIds);
+    setSelectedFileIds(null);
   };
 
   const onDownloadFile = () => {
-    console.log('Should download files:', selectedItemIds);
-    setSelectedItemIds(null);
+    console.log('Should download files:', selectedFileIds);
+    setSelectedFileIds(null);
   };
 
-  const onGoToParentDir = () => {
-    if (!isFetchingFiles)
-      fetchDirectoryListing(parentDirs[parentDirs.length - 2]);
+  const onGoToParentDir = (mode: 'listing' | 'pasting') => {
+    if (mode === 'listing') {
+      if (!isFetchingFiles)
+        fetchDirectoryListing(mode, parentDirs[parentDirs.length - 2]);
+    } else {
+      if (!isFetchingDirectories)
+        fetchDirectoryListing(
+          mode,
+          copyDialogParentDirs[copyDialogParentDirs.length - 2]
+        );
+    }
   };
 
   const renderLastFetchLabel = () => (
     <div id='last-fetch-text'>
       <span id='last-fetch-on-text'>Last fetched on:</span>
-      <span>{lastFetchedOn?.toString() || <Loader />}</span>
+      <span>{directoryListing.lastFetchedOn?.toString() || <Loader />}</span>
     </div>
   );
 
@@ -111,8 +218,7 @@ const FileManager: React.FC<IProps> = props => {
             <span key={index}>
               <a
                 href={isLastItem ? undefined : '#'}
-                className='link'
-                id='path-link-text'
+                className='link path-link-text'
                 style={
                   isFetchingFiles
                     ? { color: 'gray', cursor: 'default' }
@@ -142,7 +248,9 @@ const FileManager: React.FC<IProps> = props => {
         key={`${buttonProps.id} + ${index}`}
         id={buttonProps.id}
         className='action-button'
-        onClick={buttonProps.onClick}>
+        onClick={() => {
+          if (!buttonProps.disabled) buttonProps.onClick();
+        }}>
         <img
           style={{ visibility: buttonProps.disabled ? 'hidden' : 'visible' }}
           src={buttonProps.icon}
@@ -183,28 +291,28 @@ const FileManager: React.FC<IProps> = props => {
         onClick: onDeleteFile,
         icon: require('../../assets/images/delete.png'),
         labelText: 'Delete',
-        disabled: Boolean(isFetchingFiles || !selectedItemIds?.length),
+        disabled: Boolean(isFetchingFiles || !selectedFileIds?.length),
       },
       {
         id: 'move-button',
         onClick: () => onFileCopyTo(true),
         icon: require('../../assets/images/move.jpg'),
         labelText: 'Move To',
-        disabled: Boolean(isFetchingFiles || !selectedItemIds?.length),
+        disabled: Boolean(isFetchingFiles || !selectedFileIds?.length),
       },
       {
         id: 'copy-button',
-        onClick: onFileCopyTo,
+        onClick: () => onFileCopyTo(false),
         icon: require('../../assets/images/copy.png'),
         labelText: 'Copy To',
-        disabled: Boolean(isFetchingFiles || !selectedItemIds?.length),
+        disabled: Boolean(isFetchingFiles || !selectedFileIds?.length),
       },
       {
         id: 'duplicate-button',
         onClick: onDuplicateFile,
         icon: require('../../assets/images/duplicate.png'),
         labelText: 'Duplicate',
-        disabled: Boolean(isFetchingFiles || !selectedItemIds?.length),
+        disabled: Boolean(isFetchingFiles || !selectedFileIds?.length),
         size: 18,
       },
       {
@@ -212,7 +320,7 @@ const FileManager: React.FC<IProps> = props => {
         onClick: onDuplicateFile,
         icon: require('../../assets/images/download.jpeg'),
         labelText: 'Download',
-        disabled: Boolean(isFetchingFiles || !selectedItemIds?.length),
+        disabled: Boolean(isFetchingFiles || !selectedFileIds?.length),
         size: 22,
       },
     ];
@@ -220,17 +328,37 @@ const FileManager: React.FC<IProps> = props => {
     return <div id='action-button-panel'>{buttons.map(renderButton)}</div>;
   };
 
-  const renderErrorOrListPanel = () => {
-    const renderErrorMessage = () => (
+  const renderParentDirLink = (mode: 'listing' | 'pasting') => (
+    <div id='parent-dir-container'>
+      <img
+        src={require('../../assets/images/parent-folder.png')}
+        alt='go-to-parent-folder-icon'
+        height={25}
+        width={25}
+      />
+      <a className='link' href='#' onClick={() => onGoToParentDir(mode)}>
+        ..
+      </a>
+    </div>
+  );
+
+  const renderErrorMessage = (mode: 'listing' | 'pasting') => {
+    const error = (
+      mode === 'listing' ? directoryListing : pasteDestinationListing
+    ).error;
+
+    return (
       <div id='error-reason-container'>
         <span id='error-reason-text'>Error: {error?.reason}</span>
 
-        {error?.fileId && (
-          <span id='error-file-id-text'>File ID: {error.fileId}</span>
+        {directoryListing.error?.fileId && (
+          <span id='error-file-id-text'>File ID: {error?.fileId}</span>
         )}
       </div>
     );
+  };
 
+  const renderErrorOrListPanel = () => {
     const renderFilePreviewPanel = () => (
       <div id='file-preview-container'>
         <table id='file-preview-table'>
@@ -262,40 +390,18 @@ const FileManager: React.FC<IProps> = props => {
       </div>
     );
 
-    const renderParentDirLink = () => (
-      <div id='parent-dir-container'>
-        <img
-          src={require('../../assets/images/parent-folder.png')}
-          alt='go-to-parent-folder-icon'
-          height={25}
-          width={25}
-        />
-        <a className='link' href='#' onClick={onGoToParentDir}>
-          ..
-        </a>
-      </div>
-    );
-
     const renderFiles = () =>
-      files?.map((file, index) => (
-        <div key={index} id='file-container'>
-          {selectedItemIds && (
+      directoryListing.files.map((file, index) => (
+        <div key={index} className='file-container'>
+          {selectedFileIds && (
             <input
               type='checkbox'
-              checked={selectedItemIds?.includes(file.id)}
-              onChange={() => {
-                if (selectedItemIds) {
-                  const ids = [...selectedItemIds];
-                  const index = ids.findIndex(id => id === file.id);
-                  if (index === -1) ids.push(file.id);
-                  else ids.splice(index, 1);
-                  setSelectedItemIds(ids);
-                } else setSelectedItemIds([file.id]);
-              }}
+              checked={selectedFileIds?.includes(file.id)}
+              onChange={() => onSelectFile(file)}
             />
           )}
           <img
-            id='img-file-icon'
+            className='img-file-icon'
             src={require(`../../assets/images/${
               file.isDir ? 'folder' : 'file'
             }.png`)}
@@ -309,6 +415,33 @@ const FileManager: React.FC<IProps> = props => {
         </div>
       ));
 
+    const renderSelectAllCheckbox = () => {
+      const allSelected = directoryListing.files.every(file =>
+        selectedFileIds?.includes(file.id)
+      );
+
+      const onClick = () =>
+        setSelectedFileIds(
+          allSelected ? [] : directoryListing.files.map(f => f.id)
+        );
+
+      return (
+        <div className='file-container'>
+          <input type='checkbox' checked={allSelected} onChange={onClick} />
+          <img
+            className='img-file-icon'
+            src={require('../../assets/images/select.png')}
+            alt='file-folder-icon'
+            height={20}
+            width={20}
+          />
+          <a className='link' href='#' onClick={onClick}>
+            Select All
+          </a>
+        </div>
+      );
+    };
+
     const renderFileListing = () => (
       <div id='file-view-container'>
         <div id='file-list-container'>
@@ -318,12 +451,16 @@ const FileManager: React.FC<IProps> = props => {
             </div>
           ) : (
             <div id='file-listing'>
-              {parentDirs[parentDirs.length - 1] && renderParentDirLink()}
+              {parentDirs[parentDirs.length - 1] &&
+                renderParentDirLink('listing')}
 
-              {files?.length === 0 ? (
+              {directoryListing.files?.length === 0 ? (
                 <div id='empty-folder-text'>Empty folder</div>
               ) : (
-                <div id='files'>{renderFiles()}</div>
+                <div id='files'>
+                  {selectedFileIds && renderSelectAllCheckbox()}
+                  {renderFiles()}
+                </div>
               )}
             </div>
           )}
@@ -335,18 +472,147 @@ const FileManager: React.FC<IProps> = props => {
 
     return (
       <div id='list-error-container'>
-        {error ? renderErrorMessage() : renderFileListing()}
+        {directoryListing.error
+          ? renderErrorMessage('listing')
+          : renderFileListing()}
       </div>
     );
   };
 
+  const renderHoverCard = () => {
+    const renderDialogPathViewer = (
+      dir: Directory,
+      index: number,
+      dirs: Directory[]
+    ) => {
+      const isLastItem = dirs.length - 1 === index;
+
+      return (
+        <span key={index}>
+          <a
+            href={isLastItem ? undefined : '#'}
+            className='link path-link-text'
+            style={
+              isFetchingDirectories
+                ? { color: 'gray', cursor: 'default' }
+                : undefined
+            }
+            onClick={() => {
+              if (!isLastItem) fetchDirectoryListing('pasting', dir);
+            }}>
+            {dir?.name ?? '/'}
+          </a>
+          {!isLastItem && <span id='right-chevron'>{'>'}</span>}
+        </span>
+      );
+    };
+
+    const renderDialogDirList = () => {
+      const renderDirs = () =>
+        pasteDestinationListing.files.map((dir, index) => (
+          <div key={index} className='file-container'>
+            <img
+              className='img-file-icon'
+              src={require('../../assets/images/folder.png')}
+              alt='file-folder-icon'
+              height={20}
+              width={20}
+            />
+            <a
+              className='link full-width'
+              href='#'
+              onClick={() => fetchDirectoryListing('pasting', dir)}>
+              {dir.name}
+            </a>
+          </div>
+        ));
+
+      return (
+        <div id='file-view-container'>
+          {isFetchingDirectories ? (
+            <div id='file-list-loader-container'>
+              <Loader />
+            </div>
+          ) : (
+            <div id='file-listing'>
+              {copyDialogParentDirs[copyDialogParentDirs.length - 1] &&
+                renderParentDirLink('pasting')}
+
+              {pasteDestinationListing.files?.length === 0 ? (
+                <div id='empty-folder-text'>Empty folder</div>
+              ) : (
+                <div id='files'>{renderDirs()}</div>
+              )}
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    return (
+      <HoverCard
+        show={copyDialogProps.show}
+        onDismiss={copyDialogProps?.onCancel!}>
+        <div className='column'>
+          <span id='hover-title'>{copyDialogProps?.title}</span>
+          <span id='hover-text'>{copyDialogProps?.text}</span>
+        </div>
+        <div id='hover-dir-browser-container'>
+          <span id='hover-small-text'>
+            Select a folder to {copyDialogProps?.operation}:
+          </span>
+          <div id='hover-dir-browser'>
+            <div id='copy-dialog-path-viewer'>
+              {copyDialogParentDirs.map(renderDialogPathViewer)}
+              {isFetchingDirectories && (
+                <div id='path-viewer-loader-container'>
+                  <Loader />
+                </div>
+              )}
+            </div>
+
+            {pasteDestinationListing.error ? (
+              renderErrorMessage('pasting')
+            ) : (
+              <div id='dialog-dir-list'>{renderDialogDirList()}</div>
+            )}
+          </div>
+        </div>
+
+        <div id='confirm-button-container'>
+          <button
+            disabled={
+              !!pasteDestinationListing.error ||
+              pasteDestinationListing.sourceDirectoryId ===
+                copyDialogParentDirs[copyDialogParentDirs.length - 1]?.id
+            }
+            className='confirm-button'
+            onClick={() =>
+              copyDialogProps.onSelect?.(
+                copyDialogParentDirs[copyDialogParentDirs.length - 1]
+              )
+            }>
+            Select Folder
+          </button>
+          <button className='confirm-button' onClick={copyDialogProps.onCancel}>
+            Cancel
+          </button>
+        </div>
+      </HoverCard>
+    );
+  };
+
   return (
-    <div id='file-manager-container'>
-      {renderLastFetchLabel()}
-      {renderPathViewer()}
-      {renderButtonPanel()}
-      {renderErrorOrListPanel()}
-    </div>
+    <>
+      {renderHoverCard()}
+
+      <div id='file-manager-container'>
+        {renderLastFetchLabel()}
+        {renderPathViewer()}
+        {renderButtonPanel()}
+        {renderErrorOrListPanel()}
+      </div>
+    </>
   );
 };
 
