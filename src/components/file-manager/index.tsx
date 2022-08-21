@@ -116,8 +116,20 @@ const FileManager: React.FC<IProps> = props => {
       fetchDirectoryListing('listing', parentDirs[parentDirs.length - 1]);
   };
 
+  const showNewDialog = () => {
+    if (!isFetchingFiles) {
+      console.log('Show new dialog');
+    }
+  };
+
   const switchFileSelection = () => {
     if (!isFetchingFiles) setSelectedFileIds(val => (val ? null : []));
+  };
+
+  const onRenameFiles = () => {
+    if (!isFetchingFiles) {
+      console.log('Should rename files:', selectedFileIds);
+    }
   };
 
   const onDeleteFile = () => {
@@ -181,6 +193,10 @@ const FileManager: React.FC<IProps> = props => {
   const onDuplicateFile = () => {
     console.log('Should duplicate files:', selectedFileIds);
     setSelectedFileIds(null);
+  };
+
+  const onShowInfo = () => {
+    console.log('Should show info for files:', selectedFileIds);
   };
 
   const onDownloadFile = () => {
@@ -280,11 +296,26 @@ const FileManager: React.FC<IProps> = props => {
         disabled: isFetchingFiles,
       },
       {
+        id: 'new-button',
+        onClick: showNewDialog,
+        icon: require('../../assets/images/new.png'),
+        labelText: 'New',
+        disabled: isFetchingFiles,
+      },
+      {
         id: 'select-button',
         onClick: switchFileSelection,
         icon: require('../../assets/images/select.png'),
         labelText: 'Select',
         disabled: isFetchingFiles,
+      },
+      {
+        id: 'rename-button',
+        onClick: onRenameFiles,
+        icon: require('../../assets/images/rename.png'),
+        labelText: 'Rename',
+        disabled: Boolean(isFetchingFiles || !selectedFileIds?.length),
+        size: 20,
       },
       {
         id: 'delete-button',
@@ -322,6 +353,13 @@ const FileManager: React.FC<IProps> = props => {
         labelText: 'Download',
         disabled: Boolean(isFetchingFiles || !selectedFileIds?.length),
         size: 22,
+      },
+      {
+        id: 'info-button',
+        onClick: onShowInfo,
+        icon: require('../../assets/images/info.png'),
+        labelText: 'Show Info',
+        disabled: Boolean(isFetchingFiles || !selectedFileIds?.length),
       },
     ];
 
@@ -531,7 +569,7 @@ const FileManager: React.FC<IProps> = props => {
         <div id='file-view-container'>
           {isFetchingDirectories ? (
             <div id='file-list-loader-container'>
-              <Loader />
+              <Loader size='large' />
             </div>
           ) : (
             <div id='file-listing'>
