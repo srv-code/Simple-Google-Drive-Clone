@@ -28,23 +28,138 @@ interface ICopyDialogProps {
   sourceDirectory?: File;
   operation?: 'move' | 'copy';
   title?: string;
-  text?: string;
+  description?: string;
   onSelect?: (directory: Directory) => void;
   onCancel?: () => void;
 }
 
 type Directory = File | undefined;
 
+type FileTemplateID = number;
+type FileTemplateType = 'Plain' | 'Spreadsheet' | 'Document' | 'Presentation';
+type NewFileTemplate = {
+  id: FileTemplateID;
+  name: string;
+  extension?: string;
+  type: FileTemplateType;
+};
+
+const newFileTemplates: NewFileTemplate[] = [
+  {
+    id: 1,
+    name: 'Blank File',
+    type: 'Plain',
+  },
+  {
+    id: 2,
+    name: 'Text File',
+    extension: '.txt',
+    type: 'Plain',
+  },
+
+  {
+    id: 3,
+    name: 'Microsoft Excel Sheet',
+    extension: '.xlsx',
+    type: 'Spreadsheet',
+  },
+  {
+    id: 4,
+    name: 'Microsoft Excel Sheet - Older version',
+    extension: '.xls',
+    type: 'Spreadsheet',
+  },
+  {
+    id: 5,
+    name: 'Apple Numbers Sheet',
+    extension: '.numbers',
+    type: 'Spreadsheet',
+  },
+
+  {
+    id: 6,
+    name: 'Microsoft Word Document',
+    extension: '.docx',
+    type: 'Document',
+  },
+  {
+    id: 7,
+    name: 'Microsoft Word Document - Older version',
+    extension: '.doc',
+    type: 'Document',
+  },
+  {
+    id: 8,
+    name: 'Apple Pages Document',
+    extension: '.pages',
+    type: 'Document',
+  },
+
+  {
+    id: 9,
+    name: 'Microsoft Presentation Document',
+    extension: '.pptx',
+    type: 'Presentation',
+  },
+  {
+    id: 10,
+    name: 'Microsoft Presentation Document - Older version',
+    extension: '.ppt',
+    type: 'Presentation',
+  },
+  {
+    id: 11,
+    name: 'Apple Keynote Document',
+    extension: '.key',
+    type: 'Presentation',
+  },
+];
+
+interface INewDialogDetails {
+  show: boolean;
+  onSelect?: () => void;
+  onCancel?: () => void;
+}
+
+interface IRenameDialogDetails {
+  show: boolean;
+  batchRenaming?: boolean;
+  title?: string;
+  description?: string;
+  counts?: { dirs: number; files: number };
+  onOK?: () => void;
+  onCancel?: () => void;
+}
+
 const FileManager: React.FC<IProps> = props => {
   const [parentDirs, setParentDirs] = useState<Directory[]>([]);
   const [copyDialogParentDirs, setCopyDialogParentDirs] = useState<Directory[]>(
     []
   );
-
+  const [newDialogDetails, setNewDialogDetails] = useState<INewDialogDetails>({
+    show: false,
+  });
+  const [selectedFileTemplateId, setSelectedFileTemplateId] = useState<
+    FileTemplateID | undefined
+  >();
+  const [selectedFileTemplateType, setSelectedFileTemplateType] = useState<
+    FileTemplateType | undefined
+  >();
+  const [renameDialogDetails, setRenameDialogDetails] =
+    useState<IRenameDialogDetails>({ show: false });
   const [previewData, setPreviewData] = useState<File | null>();
   const [selectedFileIds, setSelectedFileIds] = useState<FileID[] | null>(null);
   const [copyDialogProps, setCopyDialogProps] = useState<ICopyDialogProps>({
     show: false,
+  });
+  const [baseNameForRenaming, setBaseNameForRenaming] = useState({
+    forFiles: '',
+    forFolder: '',
+  });
+  const [fileExtensionForRenaming, setFileExtensionForRenaming] = useState({
+    original: '',
+    new: '',
+    includeOriginal: false,
   });
 
   const {
@@ -112,29 +227,123 @@ const FileManager: React.FC<IProps> = props => {
   };
 
   const onRefreshDirListing = () => {
-    if (!isFetchingFiles)
-      fetchDirectoryListing('listing', parentDirs[parentDirs.length - 1]);
+    fetchDirectoryListing('listing', parentDirs[parentDirs.length - 1]);
   };
 
   const showNewDialog = () => {
-    if (!isFetchingFiles) {
-      console.log('Show new dialog');
-    }
+    setSelectedFileIds(null);
+
+    setNewDialogDetails({
+      show: true,
+      onSelect: () => {
+        // dispatch create new file
+        setNewDialogDetails({ show: false });
+      },
+      onCancel: () => {
+        setNewDialogDetails({ show: false });
+      },
+    });
   };
 
   const switchFileSelection = () => {
-    if (!isFetchingFiles) setSelectedFileIds(val => (val ? null : []));
+    setSelectedFileIds(val => (val ? null : []));
   };
 
   const onRenameFiles = () => {
-    if (!isFetchingFiles) {
-      console.log('Should rename files:', selectedFileIds);
+    const { dirCount: dirs, fileCount: files } = getSelectedFileFolderCount();
+
+    // building dialog title & description
+    let batchRenaming = selectedFileIds!.length > 1,
+      title = '',
+      description = 'Renaming ';
+
+    if (batchRenaming) {
+      title = 'Batch ' + title;
+      description = 'Batch ' + description;
     }
+
+    if (files) {
+      title += 'File';
+      description += `${files} Files`;
+    }
+    if (files && dirs) {
+      title += ' & ';
+      description += ' & ';
+    }
+    if (dirs) {
+      title += 'Folder';
+      description += `${dirs} Folders`;
+    }
+    title += ' Rename';
+
+    // extracting base file name and extension
+    let fileBaseName = '',
+      folderBaseName = '',
+      fileExtension = '';
+    if (files) {
+      const fileName =
+        directoryListing.files.find(
+          f => !f.isDir && selectedFileIds?.includes(f.id)
+        )?.name || '';
+      const dotIndex = fileName.lastIndexOf('.');
+      if (dotIndex === -1) {
+        fileBaseName = fileName;
+      } else {
+        fileBaseName = fileName.substring(0, dotIndex);
+        fileExtension = fileName.substring(dotIndex + 1);
+      }
+    }
+    if (dirs) {
+      folderBaseName =
+        directoryListing.files.find(
+          f => f.isDir && selectedFileIds?.includes(f.id)
+        )?.name || '';
+    }
+
+    setBaseNameForRenaming({
+      forFiles: fileBaseName,
+      forFolder: folderBaseName,
+    });
+
+    setFileExtensionForRenaming({
+      new: fileExtension,
+      original: fileExtension,
+      includeOriginal: false,
+    });
+
+    setRenameDialogDetails({
+      show: true,
+      batchRenaming,
+      title,
+      description,
+      counts: { dirs, files },
+      onOK: () => {
+        setSelectedFileIds(null);
+        setRenameDialogDetails({ show: false });
+        // dispatch renaming API
+      },
+      onCancel: () => {
+        setSelectedFileIds(null);
+        setRenameDialogDetails({ show: false });
+      },
+    });
   };
 
   const onDeleteFile = () => {
     console.log('Should delete files:', selectedFileIds);
     setSelectedFileIds(null);
+  };
+
+  const getSelectedFileFolderCount = () => {
+    let fileCount = 0,
+      dirCount = 0;
+    directoryListing.files.forEach(file => {
+      if (selectedFileIds?.includes(file.id)) {
+        if (file.isDir) dirCount++;
+        else fileCount++;
+      }
+    });
+    return { fileCount, dirCount };
   };
 
   const onFileCopyTo = (move: boolean) => {
@@ -155,14 +364,9 @@ const FileManager: React.FC<IProps> = props => {
       operation: move ? 'move' : 'copy',
       sourceDirectory,
       title: `File ${move ? 'Move' : 'Copy'}`,
-      text: (() => {
+      description: (() => {
         let retval = move ? 'Moving' : 'Copying';
-        let fileCount = 0,
-          dirCount = 0;
-        directoryListing.files.forEach(file => {
-          if (file.isDir) dirCount++;
-          else fileCount++;
-        });
+        const { dirCount, fileCount } = getSelectedFileFolderCount();
         if (dirCount) retval += ` ${dirCount} directories`;
         if (dirCount && fileCount) retval += ' and';
         if (fileCount) retval += ` ${fileCount} files`;
@@ -195,13 +399,13 @@ const FileManager: React.FC<IProps> = props => {
     setSelectedFileIds(null);
   };
 
-  const onShowInfo = () => {
-    console.log('Should show info for files:', selectedFileIds);
-  };
-
   const onDownloadFile = () => {
     console.log('Should download files:', selectedFileIds);
     setSelectedFileIds(null);
+  };
+
+  const onShowInfo = () => {
+    console.log('Should show info for files:', selectedFileIds);
   };
 
   const onGoToParentDir = (mode: 'listing' | 'pasting') => {
@@ -517,7 +721,7 @@ const FileManager: React.FC<IProps> = props => {
     );
   };
 
-  const renderHoverCard = () => {
+  const renderCopyDialog = () => {
     const renderDialogPathViewer = (
       dir: Directory,
       index: number,
@@ -590,10 +794,10 @@ const FileManager: React.FC<IProps> = props => {
     return (
       <HoverCard
         show={copyDialogProps.show}
-        onDismiss={copyDialogProps?.onCancel!}>
+        onDismiss={copyDialogProps.onCancel!}>
         <div className='column'>
           <span id='hover-title'>{copyDialogProps?.title}</span>
-          <span id='hover-text'>{copyDialogProps?.text}</span>
+          <span id='hover-text'>{copyDialogProps?.description}</span>
         </div>
         <div id='hover-dir-browser-container'>
           <span id='hover-small-text'>
@@ -640,9 +844,275 @@ const FileManager: React.FC<IProps> = props => {
     );
   };
 
+  const renderNewFileDialog = () => (
+    <HoverCard
+      show={newDialogDetails.show}
+      onDismiss={newDialogDetails?.onCancel!}>
+      <div className='column'>
+        <span id='hover-title'>New File</span>
+      </div>
+      <div id='hover-dir-browser-container'>
+        <span id='hover-small-text'>Select a new file template</span>
+        <div id='hover-dir-browser'>
+          <table id='new-file-table'>
+            <tbody>
+              <tr>
+                <td>
+                  <span className='table-attr-text'>Template</span>
+                </td>
+                <td>
+                  <select
+                    value={selectedFileTemplateType}
+                    onChange={event =>
+                      setSelectedFileTemplateType(
+                        event.target.value as FileTemplateType
+                      )
+                    }>
+                    <option>-- Select --</option>
+                    {newFileTemplates
+                      .reduce(
+                        (
+                          uniques: FileTemplateType[],
+                          temp: NewFileTemplate
+                        ) => {
+                          if (!uniques.includes(temp.type))
+                            uniques.push(temp.type);
+                          return uniques;
+                        },
+                        []
+                      )
+                      .map((type, index) => (
+                        <option key={`${type}-${index}`} value={type}>
+                          {type}
+                        </option>
+                      ))}
+                  </select>
+                </td>
+                {/* <td>selectedFileTemplateType={selectedFileTemplateType}</td> */}
+              </tr>
+              <tr>
+                <td>
+                  <span className='table-attr-text'>File Type</span>
+                </td>
+                <td>
+                  <select
+                    value={selectedFileTemplateId}
+                    onChange={event =>
+                      setSelectedFileTemplateId(
+                        +event.target.value as FileTemplateID
+                      )
+                    }>
+                    {newFileTemplates
+                      .filter(
+                        template => template.type === selectedFileTemplateType
+                      )
+                      .map((template, index) => (
+                        <option
+                          key={`${template.id}-${index}`}
+                          value={template.id}>
+                          {template.name}
+                        </option>
+                      ))}
+                  </select>
+                </td>
+                {/* <td>selectedFileTemplateId={selectedFileTemplateId}</td> */}
+              </tr>
+              <tr>
+                <td>
+                  <span className='table-attr-text'>File Extension</span>
+                </td>
+                <td>
+                  <span className='file-ext-text'>
+                    {newFileTemplates.find(
+                      template => template.id === selectedFileTemplateId
+                    )?.extension || 'None'}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id='confirm-button-container'>
+        <button
+          disabled={!selectedFileTemplateId}
+          className='confirm-button'
+          onClick={() => newDialogDetails.onSelect?.()}>
+          Select Template
+        </button>
+        <button className='confirm-button' onClick={newDialogDetails.onCancel}>
+          Cancel
+        </button>
+      </div>
+    </HoverCard>
+  );
+
+  const renderRenameDialog = () => (
+    <HoverCard
+      show={renameDialogDetails.show}
+      onDismiss={renameDialogDetails?.onCancel!}>
+      <div className='column'>
+        <span id='hover-title'>{renameDialogDetails.title}</span>
+        <span id='hover-text'>{renameDialogDetails.description}</span>
+      </div>
+      <div id='hover-dir-browser-container'>
+        <span id='hover-small-text'>Select a method of renaming</span>
+        <div id='hover-dir-browser'>
+          <table>
+            <tbody>
+              <tr id='row-rename-both'>
+                <td className='row-rename'>
+                  <table
+                    style={{
+                      display: renameDialogDetails.counts?.files
+                        ? 'flex'
+                        : 'none',
+                    }}>
+                    <tbody>
+                      <tr>
+                        <th colSpan={2}>For Files</th>
+                      </tr>
+
+                      <tr>
+                        <td>Base name</td>
+                        <td>
+                          <input
+                            type='text'
+                            value={baseNameForRenaming.forFiles}
+                            onChange={event =>
+                              setBaseNameForRenaming({
+                                ...baseNameForRenaming,
+                                forFiles: event.target.value,
+                              })
+                            }
+                          />
+                        </td>
+                      </tr>
+
+                      <tr>
+                        <td>Extension</td>
+                        <td>
+                          <input
+                            type='text'
+                            value={fileExtensionForRenaming.new}
+                            onChange={event =>
+                              setFileExtensionForRenaming({
+                                ...fileExtensionForRenaming,
+                                new: event.target.value,
+                              })
+                            }
+                          />
+                        </td>
+                      </tr>
+
+                      <tr>
+                        <td>Include previous?</td>
+                        <td>
+                          <input
+                            type='checkbox'
+                            checked={fileExtensionForRenaming.includeOriginal}
+                            onChange={event =>
+                              setFileExtensionForRenaming({
+                                ...fileExtensionForRenaming,
+                                includeOriginal: event.target.checked,
+                              })
+                            }
+                          />
+                        </td>
+                      </tr>
+
+                      <tr>
+                        <td>Preview</td>
+                        <td>
+                          <span className='file-ext-text'>
+                            {`${baseNameForRenaming.forFiles}${
+                              renameDialogDetails.batchRenaming ? ' (1)' : ''
+                            }.${
+                              fileExtensionForRenaming.includeOriginal &&
+                              fileExtensionForRenaming.original !==
+                                fileExtensionForRenaming.new
+                                ? fileExtensionForRenaming.original + '.'
+                                : ''
+                            }${fileExtensionForRenaming.new}`}
+                          </span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </td>
+
+                <td className='row-rename'>
+                  <table
+                    style={{
+                      display: renameDialogDetails.counts?.dirs
+                        ? 'flex'
+                        : 'none',
+                    }}>
+                    <tbody>
+                      <tr>
+                        <th colSpan={2}>For Folders</th>
+                      </tr>
+                      <tr>
+                        <td>Base name</td>
+                        <td>
+                          <input
+                            type='text'
+                            value={baseNameForRenaming.forFolder}
+                            onChange={event =>
+                              setBaseNameForRenaming({
+                                ...baseNameForRenaming,
+                                forFolder: event.target.value,
+                              })
+                            }
+                          />
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>Preview</td>
+                        <td>
+                          <span className='file-ext-text'>
+                            {`${baseNameForRenaming.forFolder}${
+                              renameDialogDetails.batchRenaming ? ' (1)' : ''
+                            }`}
+                          </span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id='confirm-button-container'>
+        <button
+          disabled={Boolean(
+            (renameDialogDetails.counts?.files &&
+              !baseNameForRenaming.forFiles) ||
+              (renameDialogDetails.counts?.dirs &&
+                !baseNameForRenaming.forFolder)
+          )}
+          className='confirm-button'
+          onClick={() => renameDialogDetails.onOK?.()}>
+          Rename
+        </button>
+        <button
+          className='confirm-button'
+          onClick={renameDialogDetails.onCancel}>
+          Cancel
+        </button>
+      </div>
+    </HoverCard>
+  );
+
   return (
     <>
-      {renderHoverCard()}
+      {renderCopyDialog()}
+      {renderNewFileDialog()}
+      {renderRenameDialog()}
 
       <div id='file-manager-container'>
         {renderLastFetchLabel()}

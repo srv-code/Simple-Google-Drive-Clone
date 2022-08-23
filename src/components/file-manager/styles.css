@@ -236,3 +236,32 @@
 .full-width {
   width: 100%;
 }
+
+.table-attr-text {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 15px;
+  padding-right: 40px;
+}
+
+.file-ext-text {
+  font-family: Consolas, 'Courier New', Courier, monospace;
+  font-size: 15px;
+  color: rgb(86, 82, 82);
+}
+
+.row-rename {
+  display: flex;
+}
+
+#row-rename-both {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+}
+
+/* table,
+tr,
+td,
+th {
+  border: 1px solid;
+} */

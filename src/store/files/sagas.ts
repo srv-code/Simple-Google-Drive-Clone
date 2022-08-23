@@ -183,6 +183,7 @@ class FileManager {
 }
 
 const fileManager = new FileManager();
+const DELAY_INTERVAL_IN_MS = 1000;
 
 function* filesFetchAsync({
   payload: { token, parentId },
@@ -192,7 +193,7 @@ function* filesFetchAsync({
     /* NOTE: How to call API */
     // const response = yield call(loginUser, username, password);
 
-    yield delay(1000); /* NOTE: Emulating network latency */
+    yield delay(DELAY_INTERVAL_IN_MS); /* NOTE: Emulating network latency */
 
     /* NOTE: Mock API response */
     const response = fileManager.fetchDirList(token, parentId);
@@ -214,7 +215,7 @@ function* pasteDestinationDirectoriesFetchAsync({
     /* NOTE: How to call API */
     // const response = yield call(loginUser, username, password);
 
-    yield delay(1000); /* NOTE: Emulating network latency */
+    yield delay(DELAY_INTERVAL_IN_MS); /* NOTE: Emulating network latency */
 
     /* NOTE: Mock API response */
     const response = fileManager.fetchDirs(token, parentId);
