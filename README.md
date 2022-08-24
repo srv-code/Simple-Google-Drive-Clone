@@ -3,6 +3,8 @@
 This is a simple clone of the [Google Drive](https://drive.google.com/drive/) service.  
 Pretty sure this is gonna be the next big thing 😉
 
+Caution: The word 'simple' is used here conveniently for 'ugly' 😬
+
 ---
 
 ## Technology

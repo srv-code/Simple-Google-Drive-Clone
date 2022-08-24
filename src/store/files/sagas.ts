@@ -26,26 +26,22 @@ class FileManager {
       id: 100,
       isDir: true,
       name: 'Pictures',
-      parentId: undefined,
     },
     {
       id: 200,
       isDir: true,
       name: 'Videos',
-      parentId: undefined,
     },
     {
       id: 300,
       isDir: true,
       name: 'Documents',
-      parentId: undefined,
     },
     {
       id: 400,
       isDir: false,
-      size: '10B',
+      size: 10,
       name: '.DS_Store',
-      parentId: undefined,
     },
 
     {
@@ -64,14 +60,14 @@ class FileManager {
     {
       id: 103,
       isDir: false,
-      size: '120KB',
+      size: 120 * 1024, // 120KB
       name: 'family-001.jpg',
       parentId: 101,
     },
     {
       id: 104,
       isDir: false,
-      size: '147KB',
+      size: 147 * 1024, // 147KB
       name: 'family-002.jpg',
       parentId: 101,
     },
@@ -79,21 +75,21 @@ class FileManager {
     {
       id: 105,
       isDir: false,
-      size: '231KB',
+      size: 231 * 1024, // 231KB
       name: 'college-001.jpg',
       parentId: 102,
     },
     {
       id: 106,
       isDir: false,
-      size: '170KB',
+      size: 170 * 1024, // 170KB
       name: 'college-002.jpg',
       parentId: 102,
     },
     {
       id: 107,
       isDir: false,
-      size: '266KB',
+      size: 266 * 1024, // 266KB
       name: 'college-002.jpg',
       parentId: 102,
     },
@@ -101,14 +97,14 @@ class FileManager {
     {
       id: 108,
       isDir: false,
-      size: '34.1MB',
+      size: 34.1 * Math.pow(1024, 2), // 34.1MB
       name: 'vid-001.jpg',
       parentId: 200,
     },
     {
       id: 109,
       isDir: false,
-      size: '13.45MB',
+      size: 13.45 * Math.pow(1024, 2), // 13.45MB
       name: 'vid-002.jpg',
       parentId: 200,
     },

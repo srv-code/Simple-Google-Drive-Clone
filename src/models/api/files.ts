@@ -4,7 +4,7 @@ type File = {
   id: FileID;
   isDir: boolean;
   name: string;
-  size?: string;
+  size?: number /* in bytes */;
   parentId?: FileID;
 };
 

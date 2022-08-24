@@ -139,6 +139,15 @@ interface IDeleteDialogDetails {
   onCancel?: () => void;
 }
 
+interface IFileInfoDetails {
+  show: boolean;
+  name?: string;
+  sizeInString?: string;
+  title?: string;
+  description?: string;
+  onOK?: () => void;
+}
+
 const FileManager: React.FC<IProps> = props => {
   const [parentDirs, setParentDirs] = useState<Directory[]>([]);
   const [copyDialogParentDirs, setCopyDialogParentDirs] = useState<Directory[]>(
@@ -155,7 +164,10 @@ const FileManager: React.FC<IProps> = props => {
   >();
   const [renameDialogDetails, setRenameDialogDetails] =
     useState<IRenameDialogDetails>({ show: false });
-  const [previewData, setPreviewData] = useState<File | null>();
+  const [previewDetails, setPreviewDetails] = useState<File | null>(null);
+  const [fileInfoDetails, setFileInfoDetails] = useState<IFileInfoDetails>({
+    show: false,
+  });
   const [selectedFileIds, setSelectedFileIds] = useState<FileID[] | null>(null);
   const [copyDialogDetails, setCopyDialogDetails] =
     useState<ICopyDialogDetails>({ show: false });
@@ -184,8 +196,17 @@ const FileManager: React.FC<IProps> = props => {
 
   useEffect(() => {
     if (selectedFileIds && !copyDialogDetails.show) setSelectedFileIds(null);
-    // setCopyDialogProps({ show: false });
+    // setCopyDialogDetails({ show: false });
   }, [isFetchingFiles]);
+
+  const getSizeToString = (bytes: number): string => {
+    const levels = ['B', 'KB', 'MB', 'GB'];
+    let i;
+    for (i = 0; i < levels.length && bytes >= 1024; i++) bytes /= 1024;
+    const truncated = Math.trunc(bytes);
+
+    return `${truncated === bytes ? truncated : bytes.toFixed(2)} ${levels[i]}`;
+  };
 
   const onSelectFile = (file: File) => {
     if (selectedFileIds) {
@@ -201,9 +222,9 @@ const FileManager: React.FC<IProps> = props => {
     if (selectedFileIds) onSelectFile(file!);
     else {
       if (!file || file.isDir) {
-        if (previewData) setPreviewData(null);
+        if (previewDetails) setPreviewDetails(null);
         fetchDirectoryListing('listing', file);
-      } else setPreviewData(file);
+      } else setPreviewDetails(file);
     }
   };
 
@@ -259,7 +280,7 @@ const FileManager: React.FC<IProps> = props => {
   };
 
   const onRenameFiles = () => {
-    const { dirCount: dirs, fileCount: files } = getSelectedFileFolderCount();
+    const { dirs, files } = getSelectedFilesAndFolders();
 
     // building dialog title & description
     let batchRenaming = selectedFileIds!.length > 1,
@@ -271,17 +292,17 @@ const FileManager: React.FC<IProps> = props => {
       description = 'Batch ' + description;
     }
 
-    if (files) {
+    if (files.length) {
       title += 'File';
-      description += `${files} Files`;
+      description += `${files.length} Files`;
     }
-    if (files && dirs) {
+    if (files.length && dirs.length) {
       title += ' & ';
       description += ' & ';
     }
-    if (dirs) {
+    if (dirs.length) {
       title += 'Folder';
-      description += `${dirs} Folders`;
+      description += `${dirs.length} Folders`;
     }
     title += ' Rename';
 
@@ -289,7 +310,7 @@ const FileManager: React.FC<IProps> = props => {
     let fileBaseName = '',
       folderBaseName = '',
       fileExtension = '';
-    if (files) {
+    if (files.length) {
       const fileName =
         directoryListing.files.find(
           f => !f.isDir && selectedFileIds?.includes(f.id)
@@ -302,7 +323,7 @@ const FileManager: React.FC<IProps> = props => {
         fileExtension = fileName.substring(dotIndex + 1);
       }
     }
-    if (dirs) {
+    if (dirs.length) {
       folderBaseName =
         directoryListing.files.find(
           f => f.isDir && selectedFileIds?.includes(f.id)
@@ -325,7 +346,7 @@ const FileManager: React.FC<IProps> = props => {
       batchRenaming,
       title,
       description,
-      counts: { dirs, files },
+      counts: { dirs: dirs.length, files: files.length },
       onOK: () => {
         setSelectedFileIds(null);
         setRenameDialogDetails({ show: false });
@@ -339,23 +360,23 @@ const FileManager: React.FC<IProps> = props => {
   };
 
   const onDeleteFile = () => {
-    const { dirCount, fileCount } = getSelectedFileFolderCount();
+    const { dirs, files } = getSelectedFilesAndFolders();
 
     // building dialog title & description
     let title = '',
       description = 'Delete ';
 
-    if (fileCount) {
+    if (files.length) {
       title += 'File';
-      description += `${fileCount} Files`;
+      description += `${files.length} Files`;
     }
-    if (fileCount && dirCount) {
+    if (files.length && dirs.length) {
       title += ' & ';
       description += ' & ';
     }
-    if (dirCount) {
+    if (dirs.length) {
       title += 'Folder';
-      description += `${dirCount} Folders`;
+      description += `${dirs.length} Folders`;
     }
     title += ' Delete';
     description += '?';
@@ -376,16 +397,16 @@ const FileManager: React.FC<IProps> = props => {
     });
   };
 
-  const getSelectedFileFolderCount = () => {
-    let fileCount = 0,
-      dirCount = 0;
+  const getSelectedFilesAndFolders = () => {
+    const files: File[] = [];
+    const dirs: File[] = [];
     directoryListing.files.forEach(file => {
       if (selectedFileIds?.includes(file.id)) {
-        if (file.isDir) dirCount++;
-        else fileCount++;
+        if (file.isDir) dirs.push(file);
+        else files.push(file);
       }
     });
-    return { fileCount, dirCount };
+    return { files, dirs };
   };
 
   const onFileCopyTo = (move: boolean) => {
@@ -408,10 +429,10 @@ const FileManager: React.FC<IProps> = props => {
       title: `File ${move ? 'Move' : 'Copy'}`,
       description: (() => {
         let retval = move ? 'Moving' : 'Copying';
-        const { dirCount, fileCount } = getSelectedFileFolderCount();
-        if (dirCount) retval += ` ${dirCount} directories`;
-        if (dirCount && fileCount) retval += ' and';
-        if (fileCount) retval += ` ${fileCount} files`;
+        const { dirs, files } = getSelectedFilesAndFolders();
+        if (dirs.length) retval += ` ${dirs.length} directories`;
+        if (dirs.length && files.length) retval += ' and';
+        if (files.length) retval += ` ${files.length} files`;
         // retval += '?';
         return retval;
       })(),
@@ -439,15 +460,45 @@ const FileManager: React.FC<IProps> = props => {
   const onDuplicateFile = () => {
     console.log('Should duplicate files:', selectedFileIds);
     setSelectedFileIds(null);
-  };
-
-  const onDownloadFile = () => {
-    console.log('Should download files:', selectedFileIds);
-    setSelectedFileIds(null);
+    // dispatch duplicate file API with new names
   };
 
   const onShowInfo = () => {
-    console.log('Should show info for files:', selectedFileIds);
+    const { dirs, files } = getSelectedFilesAndFolders();
+    let names: string[] = [];
+    let title: string = '';
+    let description: string = '';
+    let sizes: number = 0;
+    [...dirs, ...files].forEach(f => {
+      names.push(f.name);
+      sizes += f.size ?? 0;
+    });
+    if (files.length) {
+      title += 'File';
+      description += `${files.length} Files`;
+    }
+    if (files.length && dirs.length) {
+      title += ' & ';
+      description += ' & ';
+    }
+    if (dirs.length) {
+      title += 'Folder';
+      description += `${dirs.length} Folders`;
+    }
+    title += ' Information';
+    const sizeInString = files.length ? getSizeToString(sizes) : undefined;
+
+    setFileInfoDetails({
+      show: true,
+      name: names.join(', '),
+      sizeInString,
+      title,
+      description,
+      onOK: () => {
+        setSelectedFileIds(null);
+        setFileInfoDetails({ show: false });
+      },
+    });
   };
 
   const onGoToParentDir = (mode: 'listing' | 'pasting') => {
@@ -592,14 +643,14 @@ const FileManager: React.FC<IProps> = props => {
         disabled: Boolean(isFetchingFiles || !selectedFileIds?.length),
         size: 18,
       },
-      {
-        id: 'download-button',
-        onClick: onDuplicateFile,
-        icon: require('../../assets/images/download.jpeg'),
-        labelText: 'Download',
-        disabled: Boolean(isFetchingFiles || !selectedFileIds?.length),
-        size: 22,
-      },
+      // {
+      //   id: 'download-button',
+      //   onClick: onDownloadFile,
+      //   icon: require('../../assets/images/download.jpeg'),
+      //   labelText: 'Download',
+      //   disabled: Boolean(isFetchingFiles || !selectedFileIds?.length),
+      //   size: 22,
+      // },
       {
         id: 'info-button',
         onClick: onShowInfo,
@@ -656,11 +707,13 @@ const FileManager: React.FC<IProps> = props => {
           <tbody>
             <tr>
               <td className='left-aligned'>Name</td>
-              <td className='right-aligned'>{previewData!.name}</td>
+              <td className='right-aligned'>{previewDetails!.name}</td>
             </tr>
             <tr>
               <td className='left-aligned'>Size</td>
-              <td className='right-aligned'>{previewData!.size}</td>
+              <td className='right-aligned'>
+                {getSizeToString(previewDetails!.size!)}
+              </td>
             </tr>
             <tr>
               <td className='left-aligned'>Containing Folder</td>
@@ -750,7 +803,7 @@ const FileManager: React.FC<IProps> = props => {
           )}
         </div>
 
-        {previewData && renderFilePreviewPanel()}
+        {previewDetails && renderFilePreviewPanel()}
       </div>
     );
 
@@ -1177,12 +1230,50 @@ const FileManager: React.FC<IProps> = props => {
     </HoverCard>
   );
 
+  const renderFileInfoDialog = () => (
+    <HoverCard show={fileInfoDetails.show} onDismiss={fileInfoDetails?.onOK!}>
+      <div className='column'>
+        <span id='hover-title'>{fileInfoDetails.title}</span>
+      </div>
+
+      <div id='hover-dir-browser'>
+        <table>
+          <tbody style={{ textAlign: 'left' }}>
+            <tr>
+              <td className='table-attr-text'>Name</td>
+              <td>{fileInfoDetails.name}</td>
+            </tr>
+            {fileInfoDetails.sizeInString && (
+              <tr>
+                <td className='table-attr-text'>Size</td>
+                <td>{fileInfoDetails.sizeInString}</td>
+              </tr>
+            )}
+            <tr>
+              <td className='table-attr-text'>Description</td>
+              <td>{fileInfoDetails.description}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id='confirm-button-container'>
+        <button
+          className='file-info-ok-button'
+          onClick={() => fileInfoDetails.onOK?.()}>
+          OK
+        </button>
+      </div>
+    </HoverCard>
+  );
+
   return (
     <>
       {renderCopyDialog()}
       {renderNewFileDialog()}
       {renderRenameDialog()}
       {renderDeleteDialog()}
+      {renderFileInfoDialog()}
 
       <div id='file-manager-container'>
         {renderLastFetchLabel()}
