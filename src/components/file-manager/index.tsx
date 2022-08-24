@@ -23,16 +23,6 @@ interface IActionButton {
   size?: number;
 }
 
-interface ICopyDialogProps {
-  show: boolean;
-  sourceDirectory?: File;
-  operation?: 'move' | 'copy';
-  title?: string;
-  description?: string;
-  onSelect?: (directory: Directory) => void;
-  onCancel?: () => void;
-}
-
 type Directory = File | undefined;
 
 type FileTemplateID = number;
@@ -115,6 +105,16 @@ const newFileTemplates: NewFileTemplate[] = [
   },
 ];
 
+interface ICopyDialogDetails {
+  show: boolean;
+  sourceDirectory?: File;
+  operation?: 'move' | 'copy';
+  title?: string;
+  description?: string;
+  onSelect?: (directory: Directory) => void;
+  onCancel?: () => void;
+}
+
 interface INewDialogDetails {
   show: boolean;
   onSelect?: () => void;
@@ -127,6 +127,14 @@ interface IRenameDialogDetails {
   title?: string;
   description?: string;
   counts?: { dirs: number; files: number };
+  onOK?: () => void;
+  onCancel?: () => void;
+}
+
+interface IDeleteDialogDetails {
+  show: boolean;
+  title?: string;
+  description?: string;
   onOK?: () => void;
   onCancel?: () => void;
 }
@@ -149,9 +157,8 @@ const FileManager: React.FC<IProps> = props => {
     useState<IRenameDialogDetails>({ show: false });
   const [previewData, setPreviewData] = useState<File | null>();
   const [selectedFileIds, setSelectedFileIds] = useState<FileID[] | null>(null);
-  const [copyDialogProps, setCopyDialogProps] = useState<ICopyDialogProps>({
-    show: false,
-  });
+  const [copyDialogDetails, setCopyDialogDetails] =
+    useState<ICopyDialogDetails>({ show: false });
   const [baseNameForRenaming, setBaseNameForRenaming] = useState({
     forFiles: '',
     forFolder: '',
@@ -161,6 +168,8 @@ const FileManager: React.FC<IProps> = props => {
     new: '',
     includeOriginal: false,
   });
+  const [deleteDialogDetails, setDeleteDialogDetails] =
+    useState<IDeleteDialogDetails>({ show: false });
 
   const {
     loading: { isFetchingFiles, isFetchingDirectories },
@@ -174,7 +183,7 @@ const FileManager: React.FC<IProps> = props => {
   }, [props.token]);
 
   useEffect(() => {
-    if (selectedFileIds && !copyDialogProps.show) setSelectedFileIds(null);
+    if (selectedFileIds && !copyDialogDetails.show) setSelectedFileIds(null);
     // setCopyDialogProps({ show: false });
   }, [isFetchingFiles]);
 
@@ -330,8 +339,41 @@ const FileManager: React.FC<IProps> = props => {
   };
 
   const onDeleteFile = () => {
-    console.log('Should delete files:', selectedFileIds);
-    setSelectedFileIds(null);
+    const { dirCount, fileCount } = getSelectedFileFolderCount();
+
+    // building dialog title & description
+    let title = '',
+      description = 'Delete ';
+
+    if (fileCount) {
+      title += 'File';
+      description += `${fileCount} Files`;
+    }
+    if (fileCount && dirCount) {
+      title += ' & ';
+      description += ' & ';
+    }
+    if (dirCount) {
+      title += 'Folder';
+      description += `${dirCount} Folders`;
+    }
+    title += ' Delete';
+    description += '?';
+
+    setDeleteDialogDetails({
+      show: true,
+      title,
+      description,
+      onOK: () => {
+        setSelectedFileIds(null);
+        setDeleteDialogDetails({ show: false });
+        // dispatch delete API
+      },
+      onCancel: () => {
+        setSelectedFileIds(null);
+        setDeleteDialogDetails({ show: false });
+      },
+    });
   };
 
   const getSelectedFileFolderCount = () => {
@@ -359,7 +401,7 @@ const FileManager: React.FC<IProps> = props => {
 
     setCopyDialogParentDirs(parentDirs);
 
-    setCopyDialogProps({
+    setCopyDialogDetails({
       show: true,
       operation: move ? 'move' : 'copy',
       sourceDirectory,
@@ -381,7 +423,7 @@ const FileManager: React.FC<IProps> = props => {
           directory
         );
         setSelectedFileIds(null);
-        setCopyDialogProps({ show: false });
+        setCopyDialogDetails({ show: false });
       },
       onCancel: () => {
         console.log(
@@ -389,7 +431,7 @@ const FileManager: React.FC<IProps> = props => {
           selectedFileIds
         );
         setSelectedFileIds(null);
-        setCopyDialogProps({ show: false });
+        setCopyDialogDetails({ show: false });
       },
     });
   };
@@ -793,15 +835,15 @@ const FileManager: React.FC<IProps> = props => {
 
     return (
       <HoverCard
-        show={copyDialogProps.show}
-        onDismiss={copyDialogProps.onCancel!}>
+        show={copyDialogDetails.show}
+        onDismiss={copyDialogDetails.onCancel!}>
         <div className='column'>
-          <span id='hover-title'>{copyDialogProps?.title}</span>
-          <span id='hover-text'>{copyDialogProps?.description}</span>
+          <span id='hover-title'>{copyDialogDetails?.title}</span>
+          <span id='hover-text'>{copyDialogDetails?.description}</span>
         </div>
         <div id='hover-dir-browser-container'>
           <span id='hover-small-text'>
-            Select a folder to {copyDialogProps?.operation}:
+            Select a folder to {copyDialogDetails?.operation}:
           </span>
           <div id='hover-dir-browser'>
             <div id='copy-dialog-path-viewer'>
@@ -830,13 +872,15 @@ const FileManager: React.FC<IProps> = props => {
             }
             className='confirm-button'
             onClick={() =>
-              copyDialogProps.onSelect?.(
+              copyDialogDetails.onSelect?.(
                 copyDialogParentDirs[copyDialogParentDirs.length - 1]
               )
             }>
             Select Folder
           </button>
-          <button className='confirm-button' onClick={copyDialogProps.onCancel}>
+          <button
+            className='confirm-button'
+            onClick={copyDialogDetails.onCancel}>
             Cancel
           </button>
         </div>
@@ -1068,6 +1112,7 @@ const FileManager: React.FC<IProps> = props => {
                           />
                         </td>
                       </tr>
+
                       <tr>
                         <td>Preview</td>
                         <td>
@@ -1108,11 +1153,36 @@ const FileManager: React.FC<IProps> = props => {
     </HoverCard>
   );
 
+  const renderDeleteDialog = () => (
+    <HoverCard
+      show={deleteDialogDetails.show}
+      onDismiss={deleteDialogDetails?.onCancel!}>
+      <div className='column'>
+        <span id='hover-title'>{deleteDialogDetails.title}</span>
+        <span id='hover-text'>{deleteDialogDetails.description}</span>
+      </div>
+
+      <div id='confirm-button-container'>
+        <button
+          className='confirm-button'
+          onClick={() => deleteDialogDetails.onOK?.()}>
+          Delete
+        </button>
+        <button
+          className='confirm-button'
+          onClick={deleteDialogDetails.onCancel}>
+          Cancel
+        </button>
+      </div>
+    </HoverCard>
+  );
+
   return (
     <>
       {renderCopyDialog()}
       {renderNewFileDialog()}
       {renderRenameDialog()}
+      {renderDeleteDialog()}
 
       <div id='file-manager-container'>
         {renderLastFetchLabel()}
