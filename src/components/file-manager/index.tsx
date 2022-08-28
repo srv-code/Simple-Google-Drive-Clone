@@ -117,7 +117,8 @@ interface ICopyDialogDetails {
 
 interface INewDialogDetails {
   show: boolean;
-  onSelect?: () => void;
+  error?: string;
+  onSelect?: (fullName: string) => void;
   onCancel?: () => void;
 }
 
@@ -182,6 +183,7 @@ const FileManager: React.FC<IProps> = props => {
   });
   const [deleteDialogDetails, setDeleteDialogDetails] =
     useState<IDeleteDialogDetails>({ show: false });
+  const [newFileBaseName, setNewFileBaseName] = useState<string>('');
 
   const {
     loading: { isFetchingFiles, isFetchingDirectories },
@@ -262,12 +264,20 @@ const FileManager: React.FC<IProps> = props => {
 
   const showNewDialog = () => {
     setSelectedFileIds(null);
+    setNewFileBaseName('');
 
     setNewDialogDetails({
       show: true,
-      onSelect: () => {
-        // dispatch create new file
-        setNewDialogDetails({ show: false });
+      onSelect: fullName => {
+        if (directoryListing.files.some(f => f.name === fullName)) {
+          setNewDialogDetails(prev => ({
+            ...prev,
+            error: 'Already a file with same name is present',
+          }));
+        } else {
+          // dispatch create new file
+          setNewDialogDetails({ show: false });
+        }
       },
       onCancel: () => {
         setNewDialogDetails({ show: false });
@@ -350,7 +360,7 @@ const FileManager: React.FC<IProps> = props => {
       onOK: () => {
         setSelectedFileIds(null);
         setRenameDialogDetails({ show: false });
-        // dispatch renaming API
+        // dispatch renaming API}
       },
       onCancel: () => {
         setSelectedFileIds(null);
@@ -459,6 +469,17 @@ const FileManager: React.FC<IProps> = props => {
 
   const onDuplicateFile = () => {
     console.log('Should duplicate files:', selectedFileIds);
+
+    // const newFileNameMapping = {};
+    // const { dirs, files } = getSelectedFilesAndFolders();
+    // const selectedFiles = [...dirs, ...files]
+    // selectedFiles.forEach(f=>{
+    //   const nameMap = {originalFile:  }
+    //   const sameNameFile = f.
+
+    //   // newFileNames.push()
+    // })
+
     setSelectedFileIds(null);
     // dispatch duplicate file API with new names
   };
@@ -941,109 +962,145 @@ const FileManager: React.FC<IProps> = props => {
     );
   };
 
-  const renderNewFileDialog = () => (
-    <HoverCard
-      show={newDialogDetails.show}
-      onDismiss={newDialogDetails?.onCancel!}>
-      <div className='column'>
-        <span id='hover-title'>New File</span>
-      </div>
-      <div id='hover-dir-browser-container'>
-        <span id='hover-small-text'>Select a new file template</span>
-        <div id='hover-dir-browser'>
-          <table id='new-file-table'>
-            <tbody>
-              <tr>
-                <td>
-                  <span className='table-attr-text'>Template</span>
-                </td>
-                <td>
-                  <select
-                    value={selectedFileTemplateType}
-                    onChange={event =>
-                      setSelectedFileTemplateType(
-                        event.target.value as FileTemplateType
-                      )
-                    }>
-                    <option>-- Select --</option>
-                    {newFileTemplates
-                      .reduce(
-                        (
-                          uniques: FileTemplateType[],
-                          temp: NewFileTemplate
-                        ) => {
-                          if (!uniques.includes(temp.type))
-                            uniques.push(temp.type);
-                          return uniques;
-                        },
-                        []
-                      )
-                      .map((type, index) => (
-                        <option key={`${type}-${index}`} value={type}>
-                          {type}
-                        </option>
-                      ))}
-                  </select>
-                </td>
-                {/* <td>selectedFileTemplateType={selectedFileTemplateType}</td> */}
-              </tr>
-              <tr>
-                <td>
-                  <span className='table-attr-text'>File Type</span>
-                </td>
-                <td>
-                  <select
-                    value={selectedFileTemplateId}
-                    onChange={event =>
-                      setSelectedFileTemplateId(
-                        +event.target.value as FileTemplateID
-                      )
-                    }>
-                    {newFileTemplates
-                      .filter(
-                        template => template.type === selectedFileTemplateType
-                      )
-                      .map((template, index) => (
-                        <option
-                          key={`${template.id}-${index}`}
-                          value={template.id}>
-                          {template.name}
-                        </option>
-                      ))}
-                  </select>
-                </td>
-                {/* <td>selectedFileTemplateId={selectedFileTemplateId}</td> */}
-              </tr>
-              <tr>
-                <td>
-                  <span className='table-attr-text'>File Extension</span>
-                </td>
-                <td>
-                  <span className='file-ext-text'>
-                    {newFileTemplates.find(
-                      template => template.id === selectedFileTemplateId
-                    )?.extension || 'None'}
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+  const renderNewFileDialog = () => {
+    const extension = {
+      value: newFileTemplates.find(
+        template => template.id === selectedFileTemplateId
+      )?.extension,
+      forDisplay: '',
+    };
+    extension.forDisplay = extension.value || 'None';
 
-      <div id='confirm-button-container'>
-        <button
-          disabled={!selectedFileTemplateId}
-          className='confirm-button'
-          onClick={() => newDialogDetails.onSelect?.()}>
-          Select Template
-        </button>
-        <button className='confirm-button' onClick={newDialogDetails.onCancel}>
-          Cancel
-        </button>
-      </div>
-    </HoverCard>
-  );
+    return (
+      <HoverCard
+        show={newDialogDetails.show}
+        onDismiss={newDialogDetails?.onCancel!}>
+        <div className='column'>
+          <span id='hover-title'>New File</span>
+        </div>
+        <div id='hover-dir-browser-container'>
+          <span id='hover-small-text'>Select a new file template</span>
+          <div id='hover-dir-browser'>
+            <table id='new-file-table'>
+              <tbody>
+                <tr>
+                  <td>
+                    <span className='table-attr-text'>Base Name</span>
+                  </td>
+                  <td>
+                    <input
+                      autoFocus
+                      type='text'
+                      value={newFileBaseName}
+                      onChange={event => setNewFileBaseName(event.target.value)}
+                    />
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <span className='table-attr-text'>Template</span>
+                  </td>
+
+                  <td>
+                    <select
+                      value={selectedFileTemplateType}
+                      onChange={event =>
+                        setSelectedFileTemplateType(
+                          event.target.value as FileTemplateType
+                        )
+                      }>
+                      <option>-- Select --</option>
+                      {newFileTemplates
+                        .reduce(
+                          (
+                            uniques: FileTemplateType[],
+                            temp: NewFileTemplate
+                          ) => {
+                            if (!uniques.includes(temp.type))
+                              uniques.push(temp.type);
+                            return uniques;
+                          },
+                          []
+                        )
+                        .map((type, index) => (
+                          <option key={`${type}-${index}`} value={type}>
+                            {type}
+                          </option>
+                        ))}
+                    </select>
+                  </td>
+                  {/* <td>selectedFileTemplateType={selectedFileTemplateType}</td> */}
+                </tr>
+                <tr>
+                  <td>
+                    <span className='table-attr-text'>File Type</span>
+                  </td>
+                  <td>
+                    <select
+                      value={selectedFileTemplateId}
+                      onChange={event =>
+                        setSelectedFileTemplateId(
+                          +event.target.value as FileTemplateID
+                        )
+                      }>
+                      <option>-- Select --</option>
+                      {newFileTemplates
+                        .filter(
+                          template => template.type === selectedFileTemplateType
+                        )
+                        .map((template, index) => (
+                          <option
+                            key={`${template.id}-${index}`}
+                            value={template.id}>
+                            {template.name}
+                          </option>
+                        ))}
+                    </select>
+                  </td>
+                  {/* <td>selectedFileTemplateId={selectedFileTemplateId}</td> */}
+                </tr>
+                <tr>
+                  <td>
+                    <span className='table-attr-text'>File Extension</span>
+                  </td>
+                  <td>
+                    <span className='file-ext-text'>
+                      {extension.forDisplay}
+                    </span>
+                  </td>
+                </tr>
+                {newDialogDetails.error && (
+                  <tr>
+                    <td colSpan={2} className='dialog-error'>
+                      <span>Error: {newDialogDetails.error}</span>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id='confirm-button-container'>
+          <button
+            disabled={!newFileBaseName || !selectedFileTemplateId}
+            className='confirm-button'
+            onClick={() =>
+              newDialogDetails.onSelect?.(
+                `${newFileBaseName}${extension.value ?? ''}`
+              )
+            }>
+            Select Template
+          </button>
+          <button
+            className='confirm-button'
+            onClick={newDialogDetails.onCancel}>
+            Cancel
+          </button>
+        </div>
+      </HoverCard>
+    );
+  };
 
   const renderRenameDialog = () => (
     <HoverCard
@@ -1269,8 +1326,8 @@ const FileManager: React.FC<IProps> = props => {
 
   return (
     <>
-      {renderCopyDialog()}
       {renderNewFileDialog()}
+      {renderCopyDialog()}
       {renderRenameDialog()}
       {renderDeleteDialog()}
       {renderFileInfoDialog()}

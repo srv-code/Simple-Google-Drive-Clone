@@ -272,3 +272,20 @@ td,
 th {
   border: 1px solid;
 } */
+
+.dialog-error {
+  background-color: red;
+  text-align: center;
+  border-radius: 2px;
+  color: yellow;
+  /* color: red; */
+  font-size: small;
+  /* font-weight: bold; */
+  padding: 2px 10px;
+  /* padding: 5px 0 0 0; */
+  /* margin-top: 10px; */
+}
+
+#new-file-table {
+  width: 100%;
+}

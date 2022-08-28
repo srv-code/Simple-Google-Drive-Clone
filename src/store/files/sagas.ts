@@ -98,15 +98,30 @@ class FileManager {
       id: 108,
       isDir: false,
       size: 34.1 * Math.pow(1024, 2), // 34.1MB
-      name: 'vid-001.jpg',
+      name: 'vid-001.mp4',
       parentId: 200,
     },
     {
       id: 109,
       isDir: false,
       size: 13.45 * Math.pow(1024, 2), // 13.45MB
-      name: 'vid-002.jpg',
+      name: 'vid-002.mp4',
       parentId: 200,
+    },
+
+    {
+      id: 110,
+      isDir: false,
+      size: 13.45 * 1024, // 13.45KB
+      name: 'employees.xlsx',
+      parentId: 300,
+    },
+    {
+      id: 111,
+      isDir: false,
+      size: 13 * 1024, // 13.45KB
+      name: 'a.xlsx',
+      parentId: 300,
     },
   ];
 
@@ -179,7 +194,7 @@ class FileManager {
 }
 
 const fileManager = new FileManager();
-const DELAY_INTERVAL_IN_MS = 1000;
+const DELAY_INTERVAL_IN_MS = 200;
 
 function* filesFetchAsync({
   payload: { token, parentId },
