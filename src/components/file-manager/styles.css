@@ -215,6 +215,11 @@
   color: gray;
 }
 
+.hover-new-type-text {
+  font-size: 13px;
+  font-weight: bold;
+}
+
 #hover-dir-browser-container {
   text-align: left;
   margin-bottom: 10px;
@@ -288,4 +293,10 @@ th {
 
 #new-file-table {
   width: 100%;
+}
+
+.new-type-radio {
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
 }

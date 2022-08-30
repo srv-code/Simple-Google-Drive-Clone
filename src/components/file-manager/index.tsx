@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { File, FileID } from '../../models/api/files';
 import { IState } from '../../models/reducers/state';
 import {
+  requestCreateNewFile,
   requestFiles,
   requestPasteDestinationDirectories,
 } from '../../store/files/actions';
@@ -118,7 +119,7 @@ interface ICopyDialogDetails {
 interface INewDialogDetails {
   show: boolean;
   error?: string;
-  onSelect?: (fullName: string) => void;
+  onSelect?: (name: string, isDir: boolean) => void;
   onCancel?: () => void;
 }
 
@@ -157,6 +158,11 @@ const FileManager: React.FC<IProps> = props => {
   const [newDialogDetails, setNewDialogDetails] = useState<INewDialogDetails>({
     show: false,
   });
+  const [newFileType, setNewFileType] = useState<'FILE' | 'FOLDER' | null>(
+    null
+  );
+  const [newFileBaseName, setNewFileBaseName] = useState<string>('');
+  const [newFolderName, setNewFolderName] = useState<string>('');
   const [selectedFileTemplateId, setSelectedFileTemplateId] = useState<
     FileTemplateID | undefined
   >();
@@ -183,7 +189,6 @@ const FileManager: React.FC<IProps> = props => {
   });
   const [deleteDialogDetails, setDeleteDialogDetails] =
     useState<IDeleteDialogDetails>({ show: false });
-  const [newFileBaseName, setNewFileBaseName] = useState<string>('');
 
   const {
     loading: { isFetchingFiles, isFetchingDirectories },
@@ -265,17 +270,34 @@ const FileManager: React.FC<IProps> = props => {
   const showNewDialog = () => {
     setSelectedFileIds(null);
     setNewFileBaseName('');
+    setNewFolderName('');
+    setNewFileType(null);
 
     setNewDialogDetails({
       show: true,
-      onSelect: fullName => {
-        if (directoryListing.files.some(f => f.name === fullName)) {
+      onSelect: (name, isDir) => {
+        if (directoryListing.files.some(f => f.name === name)) {
           setNewDialogDetails(prev => ({
             ...prev,
-            error: 'Already a file with same name is present',
+            error: 'Already an entry with same name is present',
           }));
         } else {
-          // dispatch create new file
+          console.log({
+            token: props.token,
+            isDir,
+            fileName: name,
+            fileParentId: directoryListing.parentId,
+          });
+
+          dispatch(
+            requestCreateNewFile({
+              token: props.token,
+              isDir,
+              fileName: name,
+              fileParentId: directoryListing.parentId,
+            })
+          );
+
           setNewDialogDetails({ show: false });
         }
       },
@@ -484,6 +506,8 @@ const FileManager: React.FC<IProps> = props => {
     // dispatch duplicate file API with new names
   };
 
+  const onSortFiles = () => {};
+
   const onShowInfo = () => {
     const { dirs, files } = getSelectedFilesAndFolders();
     let names: string[] = [];
@@ -619,6 +643,14 @@ const FileManager: React.FC<IProps> = props => {
         icon: require('../../assets/images/new.png'),
         labelText: 'New',
         disabled: isFetchingFiles,
+      },
+      {
+        id: 'sort-button',
+        onClick: onSortFiles,
+        icon: require('../../assets/images/sort.png'),
+        labelText: 'Sort',
+        disabled: isFetchingFiles,
+        size: 17,
       },
       {
         id: 'select-button',
@@ -976,10 +1008,77 @@ const FileManager: React.FC<IProps> = props => {
         show={newDialogDetails.show}
         onDismiss={newDialogDetails?.onCancel!}>
         <div className='column'>
-          <span id='hover-title'>New File</span>
+          <span id='hover-title'>Create New</span>
         </div>
-        <div id='hover-dir-browser-container'>
-          <span id='hover-small-text'>Select a new file template</span>
+        <div
+          id='hover-dir-browser-container'
+          style={
+            newFileType !== 'FOLDER'
+              ? {
+                  backgroundColor: 'lightgray',
+                  color: 'gray',
+                }
+              : undefined
+          }>
+          <div className='new-type-radio'>
+            <input
+              type='radio'
+              name='create_new_type'
+              value='Folder'
+              checked={newFileType === 'FOLDER'}
+              onChange={() => setNewFileType('FOLDER')}
+            />
+            <span className='hover-new-type-text'>Folder</span>
+          </div>
+          <div id='hover-dir-browser'>
+            <table id='new-file-table'>
+              <tbody>
+                <tr>
+                  <td>
+                    <span className='table-attr-text'>Name</span>
+                  </td>
+                  <td>
+                    <input
+                      disabled={newFileType !== 'FOLDER'}
+                      autoFocus={newFileType === 'FOLDER'}
+                      type='text'
+                      value={newFolderName}
+                      onChange={event => setNewFolderName(event.target.value)}
+                    />
+                  </td>
+                </tr>
+                {newDialogDetails.error && (
+                  <tr>
+                    <td colSpan={2} className='dialog-error'>
+                      <span>Error: {newDialogDetails.error}</span>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div
+          id='hover-dir-browser-container'
+          style={
+            newFileType !== 'FILE'
+              ? {
+                  backgroundColor: 'lightgray',
+                  color: 'gray',
+                }
+              : undefined
+          }>
+          <div className='new-type-radio'>
+            <input
+              type='radio'
+              name='create_new_type'
+              value='File'
+              checked={newFileType === 'FILE'}
+              onChange={() => setNewFileType('FILE')}
+            />
+            <span className='hover-new-type-text'>File</span>
+          </div>
           <div id='hover-dir-browser'>
             <table id='new-file-table'>
               <tbody>
@@ -989,7 +1088,8 @@ const FileManager: React.FC<IProps> = props => {
                   </td>
                   <td>
                     <input
-                      autoFocus
+                      disabled={newFileType !== 'FILE'}
+                      autoFocus={newFileType === 'FILE'}
                       type='text'
                       value={newFileBaseName}
                       onChange={event => setNewFileBaseName(event.target.value)}
@@ -1003,6 +1103,7 @@ const FileManager: React.FC<IProps> = props => {
 
                   <td>
                     <select
+                      disabled={newFileType !== 'FILE'}
                       value={selectedFileTemplateType}
                       onChange={event =>
                         setSelectedFileTemplateType(
@@ -1037,6 +1138,7 @@ const FileManager: React.FC<IProps> = props => {
                   </td>
                   <td>
                     <select
+                      disabled={newFileType !== 'FILE'}
                       value={selectedFileTemplateId}
                       onChange={event =>
                         setSelectedFileTemplateId(
@@ -1083,14 +1185,22 @@ const FileManager: React.FC<IProps> = props => {
 
         <div id='confirm-button-container'>
           <button
-            disabled={!newFileBaseName || !selectedFileTemplateId}
+            disabled={(() => {
+              if (newFileType === 'FILE')
+                return !newFileBaseName || !selectedFileTemplateId;
+              if (newFileType === 'FOLDER') return !newFolderName.trim();
+              return true;
+            })()}
             className='confirm-button'
             onClick={() =>
               newDialogDetails.onSelect?.(
-                `${newFileBaseName}${extension.value ?? ''}`
+                newFileType === 'FILE'
+                  ? `${newFileBaseName}${extension.value ?? ''}`
+                  : newFolderName.trim(),
+                newFileType === 'FOLDER'
               )
             }>
-            Select Template
+            Create
           </button>
           <button
             className='confirm-button'
@@ -1331,6 +1441,7 @@ const FileManager: React.FC<IProps> = props => {
       {renderRenameDialog()}
       {renderDeleteDialog()}
       {renderFileInfoDialog()}
+      {/* {renderSortDialog()} */}
 
       <div id='file-manager-container'>
         {renderLastFetchLabel()}

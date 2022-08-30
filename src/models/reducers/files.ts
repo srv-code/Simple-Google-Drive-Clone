@@ -4,15 +4,21 @@ import { File, FileID } from '../api/files';
 interface IFilesState {
   token?: string;
   directoryListing: {
+    files: File[];
     parentId?: FileID;
     lastFetchedOn?: Date;
-    files: File[];
     error?: IFilesFetchError;
   };
   pasteDestinationListing: {
-    sourceDirectoryId?: FileID;
-    parentId?: FileID;
     files: File[];
+    parentId?: FileID;
+    sourceDirectoryId?: FileID;
+    error?: IFilesFetchError;
+  };
+  newFileRequest?: {
+    isDir: boolean;
+    fileName: string;
+    fileParentId?: FileID;
     error?: IFilesFetchError;
   };
 }

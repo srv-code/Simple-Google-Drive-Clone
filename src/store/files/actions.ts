@@ -5,6 +5,9 @@ import {
   PASTE_DESTINATION_DIRECTORIES_FETCH_REQUEST,
   PASTE_DESTINATION_DIRECTORIES_FETCH_RESPONSE,
   PASTE_DESTINATION_DIRECTORIES_FETCH_FAILED,
+  CREATE_NEW_FILE_REQUEST,
+  CREATE_NEW_FILE_FAILED,
+  CREATE_NEW_FILE_SUCCEDED,
 } from './action-types';
 import {
   FILES_ENABLE_LOADER,
@@ -21,7 +24,11 @@ import {
   IPasteDestinationDirectoriesFetchRequestPayload,
   IPasteDestinationDirectoriesFetchRequestAction,
   IPasteDestinationDirectoriesFetchSuccessAction,
-  IPasteDestinationDirectoriesFetchFailureAction,
+  ICreateNewFileRequestAction,
+  NoPayloadAction,
+  ICreateNewFileRequestPayload,
+  ISetTokenAction,
+  IResetTokenAction,
 } from '../../models/actions/files';
 import {
   IFilesAPIResponse,
@@ -60,7 +67,7 @@ const requestPasteDestinationDirectories = (
 
 const onPasteDestinationDirectoriesFetchFailure = (
   response: IFilesFetchError
-): IPasteDestinationDirectoriesFetchFailureAction => ({
+): IFilesFetchFailureAction => ({
   type: PASTE_DESTINATION_DIRECTORIES_FETCH_FAILED,
   payload: response,
 });
@@ -72,6 +79,29 @@ const onPasteDestinationDirectoriesFetchSuccess = (
   payload: response,
 });
 
+/* New file creation */
+const requestCreateNewFile = (
+  payload: ICreateNewFileRequestPayload
+): ICreateNewFileRequestAction => ({
+  type: CREATE_NEW_FILE_REQUEST,
+  payload,
+});
+
+const onCreateNewFileFailure = (
+  response: IFilesFetchError
+): IFilesFetchFailureAction => ({
+  type: CREATE_NEW_FILE_FAILED,
+  payload: response,
+});
+
+const onCreateNewFileSucceeded = (
+  response: IFilesAPIResponse
+): IFilesFetchSuccessAction => ({
+  type: CREATE_NEW_FILE_SUCCEDED,
+  payload: response,
+});
+
+/* Loaders */
 const enableLoader = (type: 'listing' | 'pasting') => ({
   type: type === 'listing' ? FILES_ENABLE_LOADER : DIRECTORIES_ENABLE_LOADER,
 });
@@ -87,6 +117,9 @@ export {
   requestPasteDestinationDirectories,
   onPasteDestinationDirectoriesFetchFailure,
   onPasteDestinationDirectoriesFetchSuccess,
+  requestCreateNewFile,
+  onCreateNewFileFailure,
+  onCreateNewFileSucceeded,
   enableLoader,
   disableLoader,
 };

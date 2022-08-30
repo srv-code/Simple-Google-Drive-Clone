@@ -1,5 +1,6 @@
 import { put, delay } from 'redux-saga/effects';
 import {
+  ICreateNewFileRequestAction,
   IFilesFetchError,
   IFilesFetchRequestAction,
   IPasteDestinationDirectoriesFetchRequestAction,
@@ -10,6 +11,7 @@ import {
   IFilesAPIResponse,
   IPasteDestinationDirectoriesAPIResponse,
 } from '../../models/api/files';
+import { IFilesState } from '../../models/reducers/files';
 import {
   disableLoader,
   enableLoader,
@@ -17,6 +19,8 @@ import {
   onFilesFetchFailure,
   onPasteDestinationDirectoriesFetchSuccess,
   onPasteDestinationDirectoriesFetchFailure,
+  onCreateNewFileSucceeded,
+  onCreateNewFileFailure,
 } from './actions';
 
 /* For sample use only */
@@ -125,6 +129,56 @@ class FileManager {
     },
   ];
 
+  newId: number =
+    this.fileList.reduce((id, file) => {
+      const _id = file.id || 0;
+      console.log({ id, file, _id });
+      return _id > id ? _id : id;
+    }, 0) + 1;
+
+  createNewFile(
+    token: string,
+    isDir: boolean,
+    name: string,
+    parentId?: FileID
+  ): {
+    success: boolean;
+    data?: IFilesAPIResponse;
+    error?: IFilesFetchError;
+  } {
+    if (token !== 'Xgs3a34uyd234nf6kg')
+      return {
+        success: false,
+        error: { reason: 'Unauthorized user' },
+      };
+
+    if (parentId && !this.fileList.some(f => f.id === parentId))
+      return {
+        success: false,
+        error: {
+          reason: 'Invalid parent file',
+          fileId: parentId,
+        },
+      };
+
+    this.fileList.push({
+      id: this.newId++,
+      isDir,
+      name,
+      parentId,
+      size: isDir ? undefined : 12.3 * 1024,
+    });
+
+    return {
+      success: true,
+      data: {
+        parentId,
+        files: this.fileList.filter(f => f.parentId === parentId),
+        lastFetchedOn: new Date(),
+      },
+    };
+  }
+
   fetchDirs(
     token: string,
     parentId?: FileID
@@ -207,7 +261,7 @@ function* filesFetchAsync({
     yield delay(DELAY_INTERVAL_IN_MS); /* NOTE: Emulating network latency */
 
     /* NOTE: Mock API response */
-    const response = fileManager.fetchDirList(token, parentId);
+    const response = fileManager.fetchDirList(token!, parentId);
 
     if (response.success) yield put(onFilesFetchSuccess(response.data!));
     else yield put(onFilesFetchFailure(response.error!));
@@ -229,7 +283,7 @@ function* pasteDestinationDirectoriesFetchAsync({
     yield delay(DELAY_INTERVAL_IN_MS); /* NOTE: Emulating network latency */
 
     /* NOTE: Mock API response */
-    const response = fileManager.fetchDirs(token, parentId);
+    const response = fileManager.fetchDirs(token!, parentId);
 
     if (response.success)
       yield put(onPasteDestinationDirectoriesFetchSuccess(response.data!));
@@ -241,4 +295,35 @@ function* pasteDestinationDirectoriesFetchAsync({
   }
 }
 
-export { filesFetchAsync, pasteDestinationDirectoriesFetchAsync };
+function* createNewFileAsync({
+  payload: { token, fileName, isDir, fileParentId },
+}: ICreateNewFileRequestAction) {
+  try {
+    yield put(enableLoader('listing'));
+    /* NOTE: How to call API */
+    // const response = yield call(loginUser, username, password);
+
+    yield delay(DELAY_INTERVAL_IN_MS); /* NOTE: Emulating network latency */
+
+    /* NOTE: Mock API response */
+    const response = fileManager.createNewFile(
+      token!,
+      isDir,
+      fileName,
+      fileParentId
+    );
+
+    if (response.success) yield put(onCreateNewFileSucceeded(response.data!));
+    else yield put(onCreateNewFileFailure(response.error!));
+  } catch (error: any) {
+    yield put(onCreateNewFileFailure({ reason: 'Unknown' }));
+  } finally {
+    yield put(disableLoader('listing'));
+  }
+}
+
+export {
+  filesFetchAsync,
+  pasteDestinationDirectoriesFetchAsync,
+  createNewFileAsync,
+};

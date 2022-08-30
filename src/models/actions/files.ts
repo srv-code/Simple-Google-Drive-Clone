@@ -4,6 +4,15 @@ import {
   IPasteDestinationDirectoriesAPIResponse,
 } from '../api/files';
 
+interface ISetTokenAction {
+  type: string;
+  payload: { token: string };
+}
+
+interface IResetTokenAction {
+  type: string;
+}
+
 interface IFilesFetchRequestPayload {
   token: string;
   parentId?: FileID;
@@ -45,10 +54,25 @@ interface IPasteDestinationDirectoriesFetchSuccessAction {
   payload: IPasteDestinationDirectoriesAPIResponse;
 }
 
-interface IPasteDestinationDirectoriesFetchFailureAction
-  extends IFilesFetchFailureAction {}
+interface ICreateNewFileRequestPayload {
+  token: string;
+  isDir: boolean;
+  fileName: string;
+  fileParentId?: FileID;
+}
+
+interface ICreateNewFileRequestAction {
+  type: string;
+  payload: ICreateNewFileRequestPayload;
+}
+
+interface NoPayloadAction {
+  type: string;
+}
 
 export type {
+  ISetTokenAction,
+  IResetTokenAction,
   IFilesFetchRequestPayload,
   IFilesFetchRequestAction,
   IFilesFetchSuccessAction,
@@ -56,6 +80,8 @@ export type {
   IFilesFetchFailureAction,
   IPasteDestinationDirectoriesFetchRequestPayload,
   IPasteDestinationDirectoriesFetchRequestAction,
-  IPasteDestinationDirectoriesFetchFailureAction,
   IPasteDestinationDirectoriesFetchSuccessAction,
+  ICreateNewFileRequestAction,
+  ICreateNewFileRequestPayload,
+  NoPayloadAction,
 };
