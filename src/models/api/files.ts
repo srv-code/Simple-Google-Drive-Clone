@@ -8,6 +8,9 @@ type File = {
   parentId?: FileID;
 };
 
+type FileSortCriterion = 'NAME' | 'SIZE';
+type FileSortOrder = 'ASCENDING' | 'DESCENDING';
+
 interface IFilesAPIResponse {
   files: File[];
   parentId?: FileID;
@@ -22,6 +25,8 @@ interface IPasteDestinationDirectoriesAPIResponse {
 export type {
   FileID,
   File,
+  FileSortOrder,
+  FileSortCriterion,
   IFilesAPIResponse,
   IPasteDestinationDirectoriesAPIResponse,
 };

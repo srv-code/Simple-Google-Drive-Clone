@@ -1,17 +1,11 @@
 import {
+  File,
   FileID,
+  FileSortCriterion,
+  FileSortOrder,
   IFilesAPIResponse,
   IPasteDestinationDirectoriesAPIResponse,
 } from '../api/files';
-
-interface ISetTokenAction {
-  type: string;
-  payload: { token: string };
-}
-
-interface IResetTokenAction {
-  type: string;
-}
 
 interface IFilesFetchRequestPayload {
   token: string;
@@ -66,13 +60,22 @@ interface ICreateNewFileRequestAction {
   payload: ICreateNewFileRequestPayload;
 }
 
-interface NoPayloadAction {
+interface IFileSortRequestPayload {
+  token: string;
+  files: File[];
+  parentId?: FileID;
+  sorting: {
+    order: FileSortOrder;
+    by: FileSortCriterion;
+  };
+}
+
+interface IFileSortRequestAction {
   type: string;
+  payload: IFileSortRequestPayload;
 }
 
 export type {
-  ISetTokenAction,
-  IResetTokenAction,
   IFilesFetchRequestPayload,
   IFilesFetchRequestAction,
   IFilesFetchSuccessAction,
@@ -83,5 +86,6 @@ export type {
   IPasteDestinationDirectoriesFetchSuccessAction,
   ICreateNewFileRequestAction,
   ICreateNewFileRequestPayload,
-  NoPayloadAction,
+  IFileSortRequestPayload,
+  IFileSortRequestAction,
 };

@@ -1,5 +1,5 @@
 import { IFilesFetchError } from '../actions/files';
-import { File, FileID } from '../api/files';
+import { File, FileID, FileSortCriterion, FileSortOrder } from '../api/files';
 
 interface IFilesState {
   token?: string;
@@ -8,6 +8,10 @@ interface IFilesState {
     parentId?: FileID;
     lastFetchedOn?: Date;
     error?: IFilesFetchError;
+    sorting: {
+      order: FileSortOrder;
+      by: FileSortCriterion;
+    };
   };
   pasteDestinationListing: {
     files: File[];

@@ -3,15 +3,17 @@ import {
   ICreateNewFileRequestAction,
   IFilesFetchError,
   IFilesFetchRequestAction,
+  IFileSortRequestAction,
   IPasteDestinationDirectoriesFetchRequestAction,
 } from '../../models/actions/files';
 import {
   File,
   FileID,
+  FileSortCriterion,
+  FileSortOrder,
   IFilesAPIResponse,
   IPasteDestinationDirectoriesAPIResponse,
 } from '../../models/api/files';
-import { IFilesState } from '../../models/reducers/files';
 import {
   disableLoader,
   enableLoader,
@@ -21,6 +23,8 @@ import {
   onPasteDestinationDirectoriesFetchFailure,
   onCreateNewFileSucceeded,
   onCreateNewFileFailure,
+  onFileSortingSucceeded,
+  onFileSortingFailure,
 } from './actions';
 
 /* For sample use only */
@@ -132,9 +136,42 @@ class FileManager {
   newId: number =
     this.fileList.reduce((id, file) => {
       const _id = file.id || 0;
-      console.log({ id, file, _id });
       return _id > id ? _id : id;
     }, 0) + 1;
+
+  _sort(
+    files: File[],
+    by: FileSortCriterion = 'NAME',
+    order: FileSortOrder = 'ASCENDING'
+  ): File[] {
+    const compareStrings = (x: string, y: string) =>
+      x === y ? 0 : x > y ? 1 : -1;
+
+    const compareFiles = (f1: File, f2: File) => {
+      if (by === 'NAME')
+        return order === 'ASCENDING'
+          ? compareStrings(f1.name, f2.name)
+          : compareStrings(f2.name, f1.name);
+
+      if (by === 'SIZE')
+        return order === 'ASCENDING'
+          ? (f1.size ?? 0) - (f2.size ?? 0)
+          : (f2.size ?? 0) - (f1.size ?? 0);
+
+      return compareStrings(f1.name, f2.name); /* default sorting */
+    };
+
+    const _dirs: File[] = [];
+    const _files: File[] = [];
+
+    files.forEach(f => {
+      if (f.isDir) _dirs.push(f);
+      else _files.push(f);
+    });
+
+    /* To always keep folders over files in any kind of sorting */
+    return [..._dirs.sort(compareFiles), ..._files.sort(compareFiles)];
+  }
 
   createNewFile(
     token: string,
@@ -173,7 +210,7 @@ class FileManager {
       success: true,
       data: {
         parentId,
-        files: this.fileList.filter(f => f.parentId === parentId),
+        files: this._sort(this.fileList.filter(f => f.parentId === parentId)),
         lastFetchedOn: new Date(),
       },
     };
@@ -207,7 +244,9 @@ class FileManager {
       success: true,
       data: {
         parentId,
-        files: this.fileList.filter(f => f.parentId === parentId && f.isDir),
+        files: this._sort(
+          this.fileList.filter(f => f.parentId === parentId && f.isDir)
+        ),
       },
     };
   }
@@ -240,7 +279,44 @@ class FileManager {
       success: true,
       data: {
         parentId,
-        files: this.fileList.filter(f => f.parentId === parentId),
+        files: this._sort(this.fileList.filter(f => f.parentId === parentId)),
+        lastFetchedOn: new Date(),
+      },
+    };
+  }
+
+  sortDirList(
+    token: string,
+    files: File[],
+    by: FileSortCriterion,
+    order: FileSortOrder,
+    parentId?: FileID
+  ): {
+    success: boolean;
+    data?: IFilesAPIResponse;
+    error?: IFilesFetchError;
+  } {
+    if (token !== 'Xgs3a34uyd234nf6kg')
+      return {
+        success: false,
+        error: { reason: 'Unauthorized user' },
+      };
+
+    // if (parentId === 101)
+    if (parentId && !this.fileList.some(f => f.id === parentId))
+      return {
+        success: false,
+        error: {
+          reason: 'Invalid parent file',
+          fileId: parentId,
+        },
+      };
+
+    return {
+      success: true,
+      data: {
+        parentId,
+        files: this._sort(files, by, order),
         lastFetchedOn: new Date(),
       },
     };
@@ -254,6 +330,11 @@ function* filesFetchAsync({
   payload: { token, parentId },
 }: IFilesFetchRequestAction) {
   try {
+    /* To access redux state */
+    // //@ts-ignore
+    // const state = yield select((state: IState) => state);
+    // console.log('saga', { state });
+
     yield put(enableLoader('listing'));
     /* NOTE: How to call API */
     // const response = yield call(loginUser, username, password);
@@ -266,7 +347,37 @@ function* filesFetchAsync({
     if (response.success) yield put(onFilesFetchSuccess(response.data!));
     else yield put(onFilesFetchFailure(response.error!));
   } catch (error: any) {
+    console.error('filesFetchAsync', error);
     yield put(onFilesFetchFailure({ reason: 'Unknown' }));
+  } finally {
+    yield put(disableLoader('listing'));
+  }
+}
+
+function* sortFilesAsync({
+  payload: {
+    token,
+    files,
+    parentId,
+    sorting: { order, by },
+  },
+}: IFileSortRequestAction) {
+  try {
+    yield put(enableLoader('listing'));
+
+    const response = fileManager.sortDirList(
+      token!,
+      files,
+      by,
+      order,
+      parentId
+    );
+
+    if (response.success) yield put(onFileSortingSucceeded(response.data!));
+    else yield put(onFileSortingFailure(response.error!));
+  } catch (error: any) {
+    console.error('sortFilesAsync', error);
+    yield put(onFileSortingFailure({ reason: 'Unknown' }));
   } finally {
     yield put(disableLoader('listing'));
   }
@@ -289,6 +400,7 @@ function* pasteDestinationDirectoriesFetchAsync({
       yield put(onPasteDestinationDirectoriesFetchSuccess(response.data!));
     else yield put(onPasteDestinationDirectoriesFetchFailure(response.error!));
   } catch (error: any) {
+    console.error('pasteDestinationDirectoriesFetchAsync', error);
     yield put(onPasteDestinationDirectoriesFetchFailure({ reason: 'Unknown' }));
   } finally {
     yield put(disableLoader('pasting'));
@@ -316,6 +428,7 @@ function* createNewFileAsync({
     if (response.success) yield put(onCreateNewFileSucceeded(response.data!));
     else yield put(onCreateNewFileFailure(response.error!));
   } catch (error: any) {
+    console.error('createNewFileAsync', error);
     yield put(onCreateNewFileFailure({ reason: 'Unknown' }));
   } finally {
     yield put(disableLoader('listing'));
@@ -324,6 +437,7 @@ function* createNewFileAsync({
 
 export {
   filesFetchAsync,
+  sortFilesAsync,
   pasteDestinationDirectoriesFetchAsync,
   createNewFileAsync,
 };

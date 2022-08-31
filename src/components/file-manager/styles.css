@@ -300,3 +300,14 @@ th {
   align-items: center;
   margin-bottom: 5px;
 }
+
+.row-order {
+  display: flex;
+  flex-direction: row;
+}
+
+.radio-sort-criterion {
+  display: flex;
+  align-items: center;
+  margin-left: 5px;
+}

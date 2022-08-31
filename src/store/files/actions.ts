@@ -8,6 +8,9 @@ import {
   CREATE_NEW_FILE_REQUEST,
   CREATE_NEW_FILE_FAILED,
   CREATE_NEW_FILE_SUCCEDED,
+  SORT_FILES_REQUEST,
+  SORT_FILES_FAILED,
+  SORT_FILES_SUCCEDED,
 } from './action-types';
 import {
   FILES_ENABLE_LOADER,
@@ -25,10 +28,9 @@ import {
   IPasteDestinationDirectoriesFetchRequestAction,
   IPasteDestinationDirectoriesFetchSuccessAction,
   ICreateNewFileRequestAction,
-  NoPayloadAction,
   ICreateNewFileRequestPayload,
-  ISetTokenAction,
-  IResetTokenAction,
+  IFileSortRequestPayload,
+  IFileSortRequestAction,
 } from '../../models/actions/files';
 import {
   IFilesAPIResponse,
@@ -101,6 +103,28 @@ const onCreateNewFileSucceeded = (
   payload: response,
 });
 
+/* Sort files */
+const requestFileSorting = (
+  payload: IFileSortRequestPayload
+): IFileSortRequestAction => ({
+  type: SORT_FILES_REQUEST,
+  payload,
+});
+
+const onFileSortingFailure = (
+  response: IFilesFetchError
+): IFilesFetchFailureAction => ({
+  type: SORT_FILES_FAILED,
+  payload: response,
+});
+
+const onFileSortingSucceeded = (
+  response: IFilesAPIResponse
+): IFilesFetchSuccessAction => ({
+  type: SORT_FILES_SUCCEDED,
+  payload: response,
+});
+
 /* Loaders */
 const enableLoader = (type: 'listing' | 'pasting') => ({
   type: type === 'listing' ? FILES_ENABLE_LOADER : DIRECTORIES_ENABLE_LOADER,
@@ -122,4 +146,7 @@ export {
   onCreateNewFileSucceeded,
   enableLoader,
   disableLoader,
+  requestFileSorting,
+  onFileSortingFailure,
+  onFileSortingSucceeded,
 };

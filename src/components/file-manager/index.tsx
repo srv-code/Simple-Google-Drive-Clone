@@ -1,10 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { File, FileID } from '../../models/api/files';
+import {
+  File,
+  FileID,
+  FileSortCriterion,
+  FileSortOrder,
+} from '../../models/api/files';
 import { IState } from '../../models/reducers/state';
 import {
   requestCreateNewFile,
   requestFiles,
+  requestFileSorting,
   requestPasteDestinationDirectories,
 } from '../../store/files/actions';
 import HoverCard from '../hover-card';
@@ -189,6 +195,9 @@ const FileManager: React.FC<IProps> = props => {
   });
   const [deleteDialogDetails, setDeleteDialogDetails] =
     useState<IDeleteDialogDetails>({ show: false });
+  const [showSortDialog, setShowSortDialog] = useState(false);
+  const [sortOrder, setSortOrder] = useState<FileSortOrder>('ASCENDING');
+  const [sortBy, setSortBy] = useState<FileSortCriterion>('NAME');
 
   const {
     loading: { isFetchingFiles, isFetchingDirectories },
@@ -282,13 +291,6 @@ const FileManager: React.FC<IProps> = props => {
             error: 'Already an entry with same name is present',
           }));
         } else {
-          console.log({
-            token: props.token,
-            isDir,
-            fileName: name,
-            fileParentId: directoryListing.parentId,
-          });
-
           dispatch(
             requestCreateNewFile({
               token: props.token,
@@ -382,7 +384,7 @@ const FileManager: React.FC<IProps> = props => {
       onOK: () => {
         setSelectedFileIds(null);
         setRenameDialogDetails({ show: false });
-        // dispatch renaming API}
+        // dispatch renaming API
       },
       onCancel: () => {
         setSelectedFileIds(null);
@@ -506,7 +508,33 @@ const FileManager: React.FC<IProps> = props => {
     // dispatch duplicate file API with new names
   };
 
-  const onSortFiles = () => {};
+  const onApplyFileSorting = () => {
+    dispatch(
+      requestFileSorting({
+        token: props.token,
+        files: directoryListing.files,
+        parentId: directoryListing.parentId,
+        sorting: {
+          order: sortOrder,
+          by: sortBy,
+        },
+      })
+    );
+    setShowSortDialog(false);
+  };
+
+  const onCancelFileSorting = () => {
+    /* Reverting back to the previous setting */
+    setSortBy(directoryListing.sorting.by);
+    setSortOrder(directoryListing.sorting.order);
+
+    setShowSortDialog(false);
+  };
+
+  const onSortFiles = () => {
+    setSelectedFileIds(null);
+    setShowSortDialog(true);
+  };
 
   const onShowInfo = () => {
     const { dirs, files } = getSelectedFilesAndFolders();
@@ -1023,7 +1051,7 @@ const FileManager: React.FC<IProps> = props => {
           <div className='new-type-radio'>
             <input
               type='radio'
-              name='create_new_type'
+              name='create-new-type'
               value='Folder'
               checked={newFileType === 'FOLDER'}
               onChange={() => setNewFileType('FOLDER')}
@@ -1072,7 +1100,7 @@ const FileManager: React.FC<IProps> = props => {
           <div className='new-type-radio'>
             <input
               type='radio'
-              name='create_new_type'
+              name='create-new-type'
               value='File'
               checked={newFileType === 'FILE'}
               onChange={() => setNewFileType('FILE')}
@@ -1211,6 +1239,81 @@ const FileManager: React.FC<IProps> = props => {
       </HoverCard>
     );
   };
+
+  const renderSortDialog = () => (
+    <HoverCard show={showSortDialog} onDismiss={onCancelFileSorting}>
+      <div className='column'>
+        <span id='hover-title'>{'Sort Files & Folders'}</span>
+      </div>
+      <div id='hover-dir-browser-container'>
+        <span id='hover-small-text'>Select sorting criteria:</span>
+        <div id='hover-dir-browser'>
+          <table>
+            <tbody>
+              <tr>
+                <td>Order</td>
+                <td className='row-order'>
+                  <div className='radio-sort-criterion'>
+                    <input
+                      type='radio'
+                      name='sort-order'
+                      checked={sortOrder === 'ASCENDING'}
+                      onChange={() => setSortOrder('ASCENDING')}
+                    />
+                    <span className='hover-new-type-text'>Ascending</span>
+                  </div>
+
+                  <div className='radio-sort-criterion'>
+                    <input
+                      type='radio'
+                      name='sort-order'
+                      checked={sortOrder === 'DESCENDING'}
+                      onChange={() => setSortOrder('DESCENDING')}
+                    />
+                    <span className='hover-new-type-text'>Descending</span>
+                  </div>
+                </td>
+              </tr>
+
+              <tr>
+                <td>Attribute</td>
+                <td className='row-order'>
+                  <div className='radio-sort-criterion'>
+                    <input
+                      type='radio'
+                      name='sort-by'
+                      checked={sortBy === 'NAME'}
+                      onChange={() => setSortBy('NAME')}
+                    />
+                    <span className='hover-new-type-text'>Name</span>
+                  </div>
+
+                  <div className='radio-sort-criterion'>
+                    <input
+                      type='radio'
+                      name='sort-by'
+                      checked={sortBy === 'SIZE'}
+                      onChange={() => setSortBy('SIZE')}
+                    />
+                    <span className='hover-new-type-text'>Size</span>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id='confirm-button-container'>
+        <button className='confirm-button' onClick={onApplyFileSorting}>
+          Sort
+        </button>
+        <button className='confirm-button' onClick={onCancelFileSorting}>
+          Cancel
+        </button>
+      </div>
+    </HoverCard>
+  );
 
   const renderRenameDialog = () => (
     <HoverCard
@@ -1361,7 +1464,7 @@ const FileManager: React.FC<IProps> = props => {
                 !baseNameForRenaming.forFolder)
           )}
           className='confirm-button'
-          onClick={() => renameDialogDetails.onOK?.()}>
+          onClick={renameDialogDetails.onOK}>
           Rename
         </button>
         <button
@@ -1383,9 +1486,7 @@ const FileManager: React.FC<IProps> = props => {
       </div>
 
       <div id='confirm-button-container'>
-        <button
-          className='confirm-button'
-          onClick={() => deleteDialogDetails.onOK?.()}>
+        <button className='confirm-button' onClick={deleteDialogDetails.onOK}>
           Delete
         </button>
         <button
@@ -1425,9 +1526,7 @@ const FileManager: React.FC<IProps> = props => {
       </div>
 
       <div id='confirm-button-container'>
-        <button
-          className='file-info-ok-button'
-          onClick={() => fileInfoDetails.onOK?.()}>
+        <button className='file-info-ok-button' onClick={fileInfoDetails.onOK}>
           OK
         </button>
       </div>
@@ -1441,7 +1540,7 @@ const FileManager: React.FC<IProps> = props => {
       {renderRenameDialog()}
       {renderDeleteDialog()}
       {renderFileInfoDialog()}
-      {/* {renderSortDialog()} */}
+      {renderSortDialog()}
 
       <div id='file-manager-container'>
         {renderLastFetchLabel()}

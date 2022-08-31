@@ -10,6 +10,9 @@ import {
   CREATE_NEW_FILE_REQUEST,
   CREATE_NEW_FILE_FAILED,
   CREATE_NEW_FILE_SUCCEDED,
+  SORT_FILES_REQUEST,
+  SORT_FILES_FAILED,
+  SORT_FILES_SUCCEDED,
 } from '../files/action-types';
 import { IFilesState } from '../../models/reducers/files';
 import {
@@ -17,13 +20,13 @@ import {
   IFilesFetchFailureAction,
   IFilesFetchRequestAction,
   IFilesFetchSuccessAction,
+  IFileSortRequestAction,
   IPasteDestinationDirectoriesFetchRequestAction,
   IPasteDestinationDirectoriesFetchSuccessAction,
-  ISetTokenAction,
 } from '../../models/actions/files';
 
 const initialState: IFilesState = {
-  directoryListing: { files: [] },
+  directoryListing: { files: [], sorting: { by: 'NAME', order: 'ASCENDING' } },
   pasteDestinationListing: { files: [] },
 };
 
@@ -46,6 +49,7 @@ const filesReducer = createReducer(initialState, {
       draft.directoryListing.files = files;
       draft.directoryListing.parentId = parentId;
       draft.directoryListing.lastFetchedOn = lastFetchedOn;
+      draft.directoryListing.error = undefined;
     }),
 
   [FILES_FETCH_FAILED]: (
@@ -117,6 +121,36 @@ const filesReducer = createReducer(initialState, {
   ): IFilesState =>
     produce(state, draft => {
       draft.newFileRequest!.error = payload;
+    }),
+
+  /* Sort files */
+  [SORT_FILES_REQUEST]: (
+    state: IFilesState,
+    { payload }: IFileSortRequestAction
+  ): IFilesState =>
+    produce(state, draft => {
+      draft.token = payload.token;
+      draft.directoryListing.files = payload.files;
+      draft.directoryListing.parentId = payload.parentId;
+      draft.directoryListing.sorting = payload.sorting;
+    }),
+
+  [SORT_FILES_FAILED]: (
+    state: IFilesState,
+    { payload }: IFilesFetchFailureAction
+  ): IFilesState =>
+    produce(state, draft => {
+      draft.directoryListing.error = payload;
+    }),
+
+  [SORT_FILES_SUCCEDED]: (
+    state: IFilesState,
+    { payload: { files, parentId, lastFetchedOn } }: IFilesFetchSuccessAction
+  ): IFilesState =>
+    produce(state, draft => {
+      draft.directoryListing.files = files;
+      draft.directoryListing.parentId = parentId;
+      draft.directoryListing.lastFetchedOn = lastFetchedOn;
     }),
 });
 
