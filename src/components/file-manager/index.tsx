@@ -118,15 +118,11 @@ interface ICopyDialogDetails {
   operation?: 'move' | 'copy';
   title?: string;
   description?: string;
-  onSelect?: (directory: Directory) => void;
-  onCancel?: () => void;
 }
 
 interface INewDialogDetails {
   show: boolean;
   error?: string;
-  onSelect?: (name: string, isDir: boolean) => void;
-  onCancel?: () => void;
 }
 
 interface IRenameDialogDetails {
@@ -135,16 +131,12 @@ interface IRenameDialogDetails {
   title?: string;
   description?: string;
   counts?: { dirs: number; files: number };
-  onOK?: () => void;
-  onCancel?: () => void;
 }
 
 interface IDeleteDialogDetails {
   show: boolean;
   title?: string;
   description?: string;
-  onOK?: () => void;
-  onCancel?: () => void;
 }
 
 interface IFileInfoDetails {
@@ -153,7 +145,6 @@ interface IFileInfoDetails {
   sizeInString?: string;
   title?: string;
   description?: string;
-  onOK?: () => void;
 }
 
 const FileManager: React.FC<IProps> = props => {
@@ -276,37 +267,37 @@ const FileManager: React.FC<IProps> = props => {
     fetchDirectoryListing('listing', parentDirs[parentDirs.length - 1]);
   };
 
+  const onCreatingNewFile = (name: string, isDir: boolean) => {
+    if (directoryListing.files.some(f => f.name === name)) {
+      setNewDialogDetails({
+        show: true,
+        error: 'Already an entry with same name is present',
+      });
+    } else {
+      dispatch(
+        requestCreateNewFile({
+          token: props.token,
+          isDir,
+          fileName: name,
+          fileParentId: directoryListing.parentId,
+        })
+      );
+
+      setNewDialogDetails({ show: false });
+    }
+  };
+
+  const onCancelCreatingNewFile = () => {
+    setNewDialogDetails({ show: false });
+  };
+
   const showNewDialog = () => {
     setSelectedFileIds(null);
     setNewFileBaseName('');
     setNewFolderName('');
     setNewFileType(null);
 
-    setNewDialogDetails({
-      show: true,
-      onSelect: (name, isDir) => {
-        if (directoryListing.files.some(f => f.name === name)) {
-          setNewDialogDetails(prev => ({
-            ...prev,
-            error: 'Already an entry with same name is present',
-          }));
-        } else {
-          dispatch(
-            requestCreateNewFile({
-              token: props.token,
-              isDir,
-              fileName: name,
-              fileParentId: directoryListing.parentId,
-            })
-          );
-
-          setNewDialogDetails({ show: false });
-        }
-      },
-      onCancel: () => {
-        setNewDialogDetails({ show: false });
-      },
-    });
+    setNewDialogDetails({ show: true });
   };
 
   const switchFileSelection = () => {
@@ -381,16 +372,18 @@ const FileManager: React.FC<IProps> = props => {
       title,
       description,
       counts: { dirs: dirs.length, files: files.length },
-      onOK: () => {
-        setSelectedFileIds(null);
-        setRenameDialogDetails({ show: false });
-        // dispatch renaming API
-      },
-      onCancel: () => {
-        setSelectedFileIds(null);
-        setRenameDialogDetails({ show: false });
-      },
     });
+  };
+
+  const onRenamingFiles = () => {
+    setSelectedFileIds(null);
+    setRenameDialogDetails({ show: false });
+    // dispatch renaming API
+  };
+
+  const onCancelRenamingFiles = () => {
+    setSelectedFileIds(null);
+    setRenameDialogDetails({ show: false });
   };
 
   const onDeleteFile = () => {
@@ -419,16 +412,18 @@ const FileManager: React.FC<IProps> = props => {
       show: true,
       title,
       description,
-      onOK: () => {
-        setSelectedFileIds(null);
-        setDeleteDialogDetails({ show: false });
-        // dispatch delete API
-      },
-      onCancel: () => {
-        setSelectedFileIds(null);
-        setDeleteDialogDetails({ show: false });
-      },
     });
+  };
+
+  const onDeletingFiles = () => {
+    setSelectedFileIds(null);
+    setDeleteDialogDetails({ show: false });
+    // dispatch delete API
+  };
+
+  const onCancelDeletingFiles = () => {
+    setSelectedFileIds(null);
+    setDeleteDialogDetails({ show: false });
   };
 
   const getSelectedFilesAndFolders = () => {
@@ -470,25 +465,31 @@ const FileManager: React.FC<IProps> = props => {
         // retval += '?';
         return retval;
       })(),
-      onSelect: (directory: Directory) => {
-        console.log(
-          `Should ${move ? 'move' : 'copy'} files:`,
-          selectedFileIds,
-          'to directory:',
-          directory
-        );
-        setSelectedFileIds(null);
-        setCopyDialogDetails({ show: false });
-      },
-      onCancel: () => {
-        console.log(
-          `Cancelled ${move ? 'moving' : 'copying'} files:`,
-          selectedFileIds
-        );
-        setSelectedFileIds(null);
-        setCopyDialogDetails({ show: false });
-      },
     });
+  };
+
+  const onCopyingFiles = (directory: Directory) => {
+    console.log(
+      `Should ${
+        copyDialogDetails.operation === 'move' ? 'move' : 'copy'
+      } files:`,
+      selectedFileIds,
+      'to directory:',
+      directory
+    );
+    setSelectedFileIds(null);
+    setCopyDialogDetails({ show: false });
+  };
+
+  const onCancelCopyingFiles = () => {
+    console.log(
+      `Cancelled ${
+        copyDialogDetails.operation === 'move' ? 'moving' : 'copying'
+      } files:`,
+      selectedFileIds
+    );
+    setSelectedFileIds(null);
+    setCopyDialogDetails({ show: false });
   };
 
   const onDuplicateFile = () => {
@@ -508,22 +509,26 @@ const FileManager: React.FC<IProps> = props => {
     // dispatch duplicate file API with new names
   };
 
-  const onApplyFileSorting = () => {
-    dispatch(
-      requestFileSorting({
-        token: props.token,
-        files: directoryListing.files,
-        parentId: directoryListing.parentId,
-        sorting: {
-          order: sortOrder,
-          by: sortBy,
-        },
-      })
-    );
+  const onSortingFile = () => {
+    if (
+      sortBy !== directoryListing.sorting.by ||
+      sortOrder !== directoryListing.sorting.order
+    )
+      dispatch(
+        requestFileSorting({
+          token: props.token,
+          files: directoryListing.files,
+          parentId: directoryListing.parentId,
+          sorting: {
+            order: sortOrder,
+            by: sortBy,
+          },
+        })
+      );
     setShowSortDialog(false);
   };
 
-  const onCancelFileSorting = () => {
+  const onCancelSortingFile = () => {
     /* Reverting back to the previous setting */
     setSortBy(directoryListing.sorting.by);
     setSortOrder(directoryListing.sorting.order);
@@ -534,6 +539,11 @@ const FileManager: React.FC<IProps> = props => {
   const onSortFiles = () => {
     setSelectedFileIds(null);
     setShowSortDialog(true);
+  };
+
+  const onDismissInfoPanel = () => {
+    setSelectedFileIds(null);
+    setFileInfoDetails({ show: false });
   };
 
   const onShowInfo = () => {
@@ -567,10 +577,6 @@ const FileManager: React.FC<IProps> = props => {
       sizeInString,
       title,
       description,
-      onOK: () => {
-        setSelectedFileIds(null);
-        setFileInfoDetails({ show: false });
-      },
     });
   };
 
@@ -968,9 +974,7 @@ const FileManager: React.FC<IProps> = props => {
     };
 
     return (
-      <HoverCard
-        show={copyDialogDetails.show}
-        onDismiss={copyDialogDetails.onCancel!}>
+      <HoverCard show={copyDialogDetails.show} onDismiss={onCancelCopyingFiles}>
         <div className='column'>
           <span id='hover-title'>{copyDialogDetails?.title}</span>
           <span id='hover-text'>{copyDialogDetails?.description}</span>
@@ -1006,15 +1010,13 @@ const FileManager: React.FC<IProps> = props => {
             }
             className='confirm-button'
             onClick={() =>
-              copyDialogDetails.onSelect?.(
+              onCopyingFiles(
                 copyDialogParentDirs[copyDialogParentDirs.length - 1]
               )
             }>
             Select Folder
           </button>
-          <button
-            className='confirm-button'
-            onClick={copyDialogDetails.onCancel}>
+          <button className='confirm-button' onClick={onCancelCopyingFiles}>
             Cancel
           </button>
         </div>
@@ -1034,7 +1036,7 @@ const FileManager: React.FC<IProps> = props => {
     return (
       <HoverCard
         show={newDialogDetails.show}
-        onDismiss={newDialogDetails?.onCancel!}>
+        onDismiss={onCancelCreatingNewFile}>
         <div className='column'>
           <span id='hover-title'>Create New</span>
         </div>
@@ -1221,7 +1223,7 @@ const FileManager: React.FC<IProps> = props => {
             })()}
             className='confirm-button'
             onClick={() =>
-              newDialogDetails.onSelect?.(
+              onCreatingNewFile(
                 newFileType === 'FILE'
                   ? `${newFileBaseName}${extension.value ?? ''}`
                   : newFolderName.trim(),
@@ -1230,9 +1232,7 @@ const FileManager: React.FC<IProps> = props => {
             }>
             Create
           </button>
-          <button
-            className='confirm-button'
-            onClick={newDialogDetails.onCancel}>
+          <button className='confirm-button' onClick={onCancelCreatingNewFile}>
             Cancel
           </button>
         </div>
@@ -1241,7 +1241,7 @@ const FileManager: React.FC<IProps> = props => {
   };
 
   const renderSortDialog = () => (
-    <HoverCard show={showSortDialog} onDismiss={onCancelFileSorting}>
+    <HoverCard show={showSortDialog} onDismiss={onCancelSortingFile}>
       <div className='column'>
         <span id='hover-title'>{'Sort Files & Folders'}</span>
       </div>
@@ -1305,10 +1305,10 @@ const FileManager: React.FC<IProps> = props => {
       </div>
 
       <div id='confirm-button-container'>
-        <button className='confirm-button' onClick={onApplyFileSorting}>
+        <button className='confirm-button' onClick={onSortingFile}>
           Sort
         </button>
-        <button className='confirm-button' onClick={onCancelFileSorting}>
+        <button className='confirm-button' onClick={onCancelSortingFile}>
           Cancel
         </button>
       </div>
@@ -1318,7 +1318,7 @@ const FileManager: React.FC<IProps> = props => {
   const renderRenameDialog = () => (
     <HoverCard
       show={renameDialogDetails.show}
-      onDismiss={renameDialogDetails?.onCancel!}>
+      onDismiss={onCancelRenamingFiles}>
       <div className='column'>
         <span id='hover-title'>{renameDialogDetails.title}</span>
         <span id='hover-text'>{renameDialogDetails.description}</span>
@@ -1464,12 +1464,10 @@ const FileManager: React.FC<IProps> = props => {
                 !baseNameForRenaming.forFolder)
           )}
           className='confirm-button'
-          onClick={renameDialogDetails.onOK}>
+          onClick={onRenamingFiles}>
           Rename
         </button>
-        <button
-          className='confirm-button'
-          onClick={renameDialogDetails.onCancel}>
+        <button className='confirm-button' onClick={onCancelRenamingFiles}>
           Cancel
         </button>
       </div>
@@ -1479,19 +1477,17 @@ const FileManager: React.FC<IProps> = props => {
   const renderDeleteDialog = () => (
     <HoverCard
       show={deleteDialogDetails.show}
-      onDismiss={deleteDialogDetails?.onCancel!}>
+      onDismiss={onCancelDeletingFiles}>
       <div className='column'>
         <span id='hover-title'>{deleteDialogDetails.title}</span>
         <span id='hover-text'>{deleteDialogDetails.description}</span>
       </div>
 
       <div id='confirm-button-container'>
-        <button className='confirm-button' onClick={deleteDialogDetails.onOK}>
+        <button className='confirm-button' onClick={onDeletingFiles}>
           Delete
         </button>
-        <button
-          className='confirm-button'
-          onClick={deleteDialogDetails.onCancel}>
+        <button className='confirm-button' onClick={onCancelDeletingFiles}>
           Cancel
         </button>
       </div>
@@ -1499,7 +1495,7 @@ const FileManager: React.FC<IProps> = props => {
   );
 
   const renderFileInfoDialog = () => (
-    <HoverCard show={fileInfoDetails.show} onDismiss={fileInfoDetails?.onOK!}>
+    <HoverCard show={fileInfoDetails.show} onDismiss={onDismissInfoPanel}>
       <div className='column'>
         <span id='hover-title'>{fileInfoDetails.title}</span>
       </div>
@@ -1526,7 +1522,7 @@ const FileManager: React.FC<IProps> = props => {
       </div>
 
       <div id='confirm-button-container'>
-        <button className='file-info-ok-button' onClick={fileInfoDetails.onOK}>
+        <button className='file-info-ok-button' onClick={onDismissInfoPanel}>
           OK
         </button>
       </div>
